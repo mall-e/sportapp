@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -95,15 +96,36 @@ class _AddStudentInformationState extends State<AddStudentInformation> {
   TextEditingController _heightController = TextEditingController();
   TextEditingController _weightController = TextEditingController();
   TextEditingController _branchController = TextEditingController();
+  TextEditingController _healthproblemController = TextEditingController();
   bool _paymentStatus = false;  // Ödeme durumu başlangıçta false
 
-  void addStudent(Student student) {
-    FirebaseFirestore.instance
-        .collection('students')
-        .add(student.toMap())
-        .then((value) => print('Student Added'))
-        .catchError((error) => print('Failed to add student: $error'));
+  void addStudent(Student student) async {
+  try {
+    // Firebase Authentication'dan şu anki kullanıcıyı al
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      // Kullanıcının 'uid'si ile kişiye özel 'students' koleksiyonuna öğrenci ekleme
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)  // Kullanıcının uid'sine göre belge seçiliyor
+          .collection('students')  // Bu kullanıcının students alt koleksiyonuna ekleniyor
+          .add(student.toMap());
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Öğrenci başarıyla eklendi!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Giriş yapılmadı!')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Öğrenci eklenirken hata oluştu: $e')),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -160,21 +182,12 @@ class _AddStudentInformationState extends State<AddStudentInformation> {
               ),
             ),
           ),
-          // Ödeme durumu butonu
-          Flexible(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Ödeme Yapıldı mı?'),
-                Switch(
-                  value: _paymentStatus,
-                  onChanged: (value) {
-                    setState(() {
-                      _paymentStatus = value;
-                    });
-                  },
-                ),
-              ],
+          Expanded(
+            child: TextField(
+              controller: _healthproblemController,
+              decoration: InputDecoration(
+                labelText: 'Sağlık sorunu',
+              ),
             ),
           ),
           Flexible(
@@ -189,11 +202,14 @@ class _AddStudentInformationState extends State<AddStudentInformation> {
                   height: double.tryParse(_heightController.text) ?? 0.0,
                   weight: double.tryParse(_weightController.text) ?? 0.0,
                   branch: _branchController.text,
+                  healthProblem: _healthproblemController.text,
                   paymentStatus: _paymentStatus,  // Ödeme durumu eklendi
+                  role: 'student',  // role olarak "student" ekleniyor
                 );
 
                 // Firestore'a kaydetme
                 addStudent(student);
+
               },
               child: Text('Öğrenciyi Ekle'),
             ),

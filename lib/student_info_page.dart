@@ -19,6 +19,7 @@ class _StudentInfoPageState extends State<StudentInfoPage> {
   late TextEditingController _heightController;
   late TextEditingController _weightController;
   late TextEditingController _branchController;
+  late TextEditingController _healthproblemController;
 
   bool _paymentStatus = false;
 
@@ -31,7 +32,8 @@ class _StudentInfoPageState extends State<StudentInfoPage> {
     _heightController = TextEditingController(text: widget.student.height.toString());
     _weightController = TextEditingController(text: widget.student.weight.toString());
     _branchController = TextEditingController(text: widget.student.branch);
-    _paymentStatus = widget.student.paymentStatus;
+    _healthproblemController = TextEditingController(text: widget.student.healthProblem);
+    _paymentStatus = widget.student.paymentStatus ?? false;
   }
 
   // Firestore güncelleme fonksiyonu
@@ -47,6 +49,7 @@ class _StudentInfoPageState extends State<StudentInfoPage> {
         'height': double.tryParse(_heightController.text) ?? widget.student.height,
         'weight': double.tryParse(_weightController.text) ?? widget.student.weight,
         'branch': _branchController.text,
+        'healthProblem': _healthproblemController.text,
         'paymentStatus': _paymentStatus,
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -137,6 +140,15 @@ class _StudentInfoPageState extends State<StudentInfoPage> {
               controller: _branchController,
               decoration: InputDecoration(
                 labelText: 'Branş',
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            SizedBox(height: 20),
+            TextField(
+              controller: _healthproblemController,
+              decoration: InputDecoration(
+                labelText: 'Sağlık Sorunu',
                 border: OutlineInputBorder(),
               ),
             ),
