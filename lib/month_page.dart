@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sportapp/models/months.dart';
+import 'package:sportapp/months.dart';
 import 'package:sportapp/roll_call_page.dart';
 
 class MonthPage extends StatelessWidget {
