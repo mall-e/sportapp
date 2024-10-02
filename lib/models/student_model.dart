@@ -8,7 +8,10 @@ class Student {
   double height;
   double weight;
   String branch;
-  bool paymentStatus;  // Ödeme durumu
+  String healthProblem;
+  String role;
+
+  bool? paymentStatus;  // Ödeme durumu
 
   Student({
     required this.id,  // ID de constructor'a eklendi
@@ -18,7 +21,9 @@ class Student {
     required this.height,
     required this.weight,
     required this.branch,
-    required this.paymentStatus,
+    required this.healthProblem,
+    required this.role,
+    this.paymentStatus,
   });
 
   // Firestore için map yapısı
@@ -31,6 +36,8 @@ class Student {
       'height': height,
       'weight': weight,
       'branch': branch,
+      'healthProblem': healthProblem,
+      'role':role,
       'paymentStatus': paymentStatus,  // Ödeme durumu Firestore'a kaydedilecek
     };
   }
@@ -46,6 +53,8 @@ class Student {
       height: (data['height'] as num?)?.toDouble() ?? 0.0,
       weight: (data['weight'] as num?)?.toDouble() ?? 0.0,
       branch: data['branch'] ?? '',
+      healthProblem: data['healthProblem'] ?? '',
+      role: data['role'] ?? '',
       paymentStatus: data['paymentStatus'] ?? false,
     );
   }
