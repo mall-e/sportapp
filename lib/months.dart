@@ -14,16 +14,9 @@ class _MonthsState extends State<Months> {
     'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ];
 
-  List<String> monthsToDisplay = [];
-
   @override
   void initState() {
     super.initState();
-    DateTime now = DateTime.now();
-    int currentMonthIndex = now.month - 1; // Şu anki ay indeksi (0 tabanlı)
-
-    // Bulunduğumuz aydan yıl sonuna kadar olan ayları ekle
-    monthsToDisplay = months.sublist(currentMonthIndex) + months.sublist(0, currentMonthIndex);
   }
 
   // Ayın gün sayısını dinamik olarak hesaplayan fonksiyon
@@ -41,9 +34,9 @@ class _MonthsState extends State<Months> {
         automaticallyImplyLeading: false,
       ),
       body: ListView.builder(
-        itemCount: monthsToDisplay.length,
+        itemCount: months.length,
         itemBuilder: (context, index) {
-          String monthName = monthsToDisplay[index];
+          String monthName = months[index];
 
           // Seçilen ayın indeksini bulalım
           int selectedMonthIndex = (DateTime.now().month - 1 + index) % 12;
@@ -52,15 +45,19 @@ class _MonthsState extends State<Months> {
           return ListTile(
             title: Text(monthName),
             onTap: () {
-              // Seçilen ayın ismi ve gün sayısını `MonthPage` sayfasına gönderiyoruz
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MonthPage(
+              // Mevcut BottomSheet'i kapatıp yeni BottomSheet açıyoruz
+              Navigator.pop(context); // Mevcut bottom sheet'i kapat
+
+              // Yeni BottomSheet olarak MonthPage'i açıyoruz
+              showModalBottomSheet(
+                context: context,
+                builder: (context) {
+                  return MonthPage(
                     monthName: monthName,
+                    selectedMonth: index + 1,
                     daysInMonth: daysInMonth,
-                  ),
-                ),
+                  );
+                },
               );
             },
           );

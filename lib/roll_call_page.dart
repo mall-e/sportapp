@@ -6,7 +6,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:sportapp/month_page.dart';
 
 class RollCallPage extends StatefulWidget {
-  const RollCallPage({super.key, required DateTime selectedDate});
+  final DateTime? selectedDate;
+  const RollCallPage({super.key, this.selectedDate});
 
   @override
   State<RollCallPage> createState() => _RollCallPageState();
@@ -14,7 +15,7 @@ class RollCallPage extends StatefulWidget {
 
 class _RollCallPageState extends State<RollCallPage> {
   User? currentUser;
-  String todayDate = DateFormat('yyyy-MM-dd').format(DateTime.now()); // Bugünün tarihi
+  String todayDate = ""; // Bugünün tarihi
   String monthName = ''; // Ayın adı
   int daysInMonth = 0; // Ayın gün sayısı
 
@@ -26,7 +27,9 @@ class _RollCallPageState extends State<RollCallPage> {
     // Yerelleştirmeyi başlat
     initializeDateFormatting('tr_TR', null).then((_) {
       setState(() {
-        DateTime now = DateTime.now();
+        todayDate = DateFormat('yyyy-MM-dd')
+            .format(widget.selectedDate == null ? DateTime.now() : widget.selectedDate!);
+        DateTime now = widget.selectedDate == null ? DateTime.now() : widget.selectedDate!;
         monthName = DateFormat('MMMM', 'tr_TR').format(now); // Ayın adı
         daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Bulunduğunuz ayın gün sayısını hesapla
       });
@@ -50,38 +53,53 @@ class _RollCallPageState extends State<RollCallPage> {
     }
   }
 
+  // BottomSheet'i açma fonksiyonu
+  void _openMonthBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MonthPage(
+          monthName: monthName,
+          daysInMonth: daysInMonth,
+          selectedMonth: DateTime.now().month,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    DateTime now = DateTime.now();
+    bool isTodaySelected = widget.selectedDate == null ||
+        (widget.selectedDate!.year == now.year &&
+            widget.selectedDate!.month == now.month &&
+            widget.selectedDate!.day == now.day);
+
     return Scaffold(
       appBar: AppBar(
-        leading: TextButton(
-          onPressed: () {
-            // Ayın adı ve gün sayısını gönderiyoruz
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MonthPage(
-                  monthName: monthName,
-                  daysInMonth: daysInMonth,
-                ),
+        title: Text('$todayDate'), // Tarih AppBar'ın title'ı olarak gösteriliyor
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today), // Takvim ikonunu göster
+            onPressed: () {
+              _openMonthBottomSheet(context); // BottomSheet'i aç
+            },
+          ),
+        ],
+        leading: isTodaySelected
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.pop(context); // Geri gitme fonksiyonu
+                },
               ),
-            );
-          },
-          child: Text(monthName), // Ayın adı burada gösteriliyor
-        ),
       ),
       body: currentUser == null
           ? const Center(child: Text('Kullanıcı giriş yapmamış'))
           : Column(
               children: [
-                // Bugünün tarihi
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    'Tarih: $todayDate',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                // Bugünün tarihi, artık AppBar'da gösteriliyor
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
@@ -108,7 +126,7 @@ class _RollCallPageState extends State<RollCallPage> {
                                 '${studentData['firstName']} ${studentData['lastName']}';
 
                             return FutureBuilder<DocumentSnapshot>(
-                              // Bugünkü yoklama durumunu kontrol et
+                              // Seçilen tarihteki yoklama durumunu kontrol et
                               future: FirebaseFirestore.instance
                                   .collection('users')
                                   .doc(currentUser!.uid)
@@ -118,41 +136,61 @@ class _RollCallPageState extends State<RollCallPage> {
                                   .doc(studentId)
                                   .get(),
                               builder: (context, rollcallSnapshot) {
+                                if (rollcallSnapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
+
                                 bool? isPresent;
-                                if (rollcallSnapshot.hasData && rollcallSnapshot.data!.exists) {
+                                if (rollcallSnapshot.hasData &&
+                                    rollcallSnapshot.data!.exists) {
                                   // Eğer veri varsa yoklama durumu alınır
-                                  isPresent = rollcallSnapshot.data!['isPresent'];
+                                  isPresent =
+                                      rollcallSnapshot.data!['isPresent'];
+                                } else if (!rollcallSnapshot.hasData) {
+                                  return const ListTile(
+                                    title: Text('Veri yok'),
+                                  );
                                 }
 
                                 return ListTile(
                                   title: Text(studentName),
                                   subtitle: Text(
-                                      'Yoklama durumu: ${isPresent == null ? "Henüz alınmadı" : (isPresent ? "Var" : "Yok")}'),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.check,
-                                          color: isPresent == true ? Colors.green : Colors.grey,
-                                        ),
-                                        onPressed: () {
-                                          // Yoklama: Var
-                                          _markAttendance(studentId, true);
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.close,
-                                          color: isPresent == false ? Colors.red : Colors.grey,
-                                        ),
-                                        onPressed: () {
-                                          // Yoklama: Yok
-                                          _markAttendance(studentId, false);
-                                        },
-                                      ),
-                                    ],
-                                  ),
+                                      'Yoklama durumu: ${isPresent == null ? "Henüz alınmadı" : (isPresent ? "Var olarak işaretlendi" : "Yok olarak işaretlendi")}'),
+                                  trailing: isTodaySelected
+                                      ? Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.check,
+                                                color: isPresent == true
+                                                    ? Colors.green
+                                                    : Colors.grey,
+                                              ),
+                                              onPressed: () {
+                                                // Yoklama: Var
+                                                _markAttendance(
+                                                    studentId, true);
+                                              },
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.close,
+                                                color: isPresent == false
+                                                    ? Colors.red
+                                                    : Colors.grey,
+                                              ),
+                                              onPressed: () {
+                                                // Yoklama: Yok
+                                                _markAttendance(
+                                                    studentId, false);
+                                              },
+                                            ),
+                                          ],
+                                        )
+                                      : null, // Geçmiş günlerde yoklama değiştirilmez
                                 );
                               },
                             );
