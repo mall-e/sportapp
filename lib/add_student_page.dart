@@ -8,7 +8,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:sportapp/models/student_model.dart';
 
 class AddStudentPage extends StatefulWidget {
-  const AddStudentPage({super.key});
+  final String? coachId;
+  const AddStudentPage({super.key, this.coachId});
 
   @override
   State<AddStudentPage> createState() => _AddStudentPageState();
@@ -89,7 +90,9 @@ class _AddStudentPageState extends State<AddStudentPage> {
                     });
                   },
                   branchExperiencePairs: _branchExperiencePairs,
-                  sessions: _sessions)), // Sessions listesi gönderiliyor
+                  sessions: _sessions,
+                  coachId: widget.coachId,
+                  )), // Sessions listesi gönderiliyor
         ],
       ),
     ));
@@ -100,12 +103,13 @@ class AddStudentInformation extends StatefulWidget {
   final Function(String, String) onBranchExperienceAdded; // Branş ve deneyim ekleme fonksiyonu
   final List<Map<String, String>> branchExperiencePairs; // Branş ve deneyim listesi
   final List<Map<String, String>> sessions; // Branş ve session bilgilerini içeren liste
+  final String? coachId;
 
   const AddStudentInformation({
     super.key,
     required this.onBranchExperienceAdded,
     required this.branchExperiencePairs,
-    required this.sessions,
+    required this.sessions, this.coachId,
   });
 
   @override
@@ -132,6 +136,17 @@ class _AddStudentInformationState extends State<AddStudentInformation> {
   ]; // Deneyim seviyesi listesi
 
   void addStudent() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Giriş yapılmadı!')),
+      );
+      return;
+    }
+
+    String coachId = widget.coachId ?? currentUser.uid; // Aktif kullanıcının UID'si
+
     Student student = Student(
       id: '',
       firstName: _firstNameController.text,
@@ -146,26 +161,19 @@ class _AddStudentInformationState extends State<AddStudentInformation> {
       role: 'student',
       paymentStatus: _paymentStatus,
       sessions: widget.sessions, // Sessions listesi eklendi
+      coachId: coachId, // Koçun ID'si buraya atanıyor
     );
 
     try {
-      User? currentUser = FirebaseAuth.instance.currentUser;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(coachId)
+          .collection('students')
+          .add(student.toMap());
 
-      if (currentUser != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .collection('students')
-            .add(student.toMap());
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Öğrenci başarıyla eklendi!')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Giriş yapılmadı!')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Öğrenci başarıyla eklendi!')),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Öğrenci eklenirken hata oluştu: $e')),

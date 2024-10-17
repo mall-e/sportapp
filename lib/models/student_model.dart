@@ -13,6 +13,7 @@ class Student {
   String role;
   bool? paymentStatus;
   List<Map<String, String>> sessions; // Her branş için session bilgisi
+  String coachId; // Koç ID'si
 
   Student({
     required this.id,
@@ -27,6 +28,7 @@ class Student {
     required this.role,
     this.paymentStatus,
     required this.sessions, // Yeni eklenen sessions alanı
+    required this.coachId, // Yeni eklenen coachId alanı
   });
 
   Map<String, dynamic> toMap() {
@@ -49,6 +51,7 @@ class Student {
                 'day': session['day'] ?? ''
               })
           .toList(),
+      'coachId': coachId,
     };
   }
 
@@ -73,6 +76,7 @@ class Student {
               'day': session['day'] ?? ''
             }),
       ), // Sessions listesini Firestore'dan çek
+      coachId: data['coachId'] ?? '',
     );
   }
 }

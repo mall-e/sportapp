@@ -6,8 +6,9 @@ import 'package:sportapp/models/student_model.dart';
 
 class StudentInfoPage extends StatefulWidget {
   final Student student;
+  final String? coachId;
 
-  const StudentInfoPage({super.key, required this.student});
+  const StudentInfoPage({super.key, required this.student, this.coachId});
 
   @override
   State<StudentInfoPage> createState() => _StudentInfoPageState();
@@ -199,6 +200,7 @@ class _StudentInfoPageState extends State<StudentInfoPage> {
                                 '${widget.student.firstName} ${widget.student.lastName}',
                             availableBranches: _branches,
                             studentId: widget.student.id,
+                            coachId: widget.coachId,
                           )));
             },
             icon: Icon(Icons.schedule),

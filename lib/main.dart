@@ -1,12 +1,16 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:sportapp/add_student_page.dart';
 import 'package:sportapp/admin_login_page.dart';
+import 'package:sportapp/attendant_menu.dart';
+import 'package:sportapp/admin/admin_menu.dart'; // AdminMenu sayfasını ekledik
 import 'package:sportapp/coachs_program_page.dart';
 import 'package:sportapp/firebase_options.dart';
 import 'package:sportapp/roll_call_page.dart';
+import 'package:sportapp/routes/app_routes.dart';
 import 'package:sportapp/student_list_page.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // FirebaseAuth ekledik
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +32,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: Colors.black, 
+          backgroundColor: Colors.black,
           selectedItemColor: Colors.black,
           unselectedItemColor: Colors.grey,
         ),
@@ -38,20 +42,54 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Kullanıcı oturum durumunu kontrol eden sınıf
 class AuthCheck extends StatelessWidget {
   const AuthCheck({Key? key}) : super(key: key);
 
+  Future<String?> getUserRole(String userId) async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        return userDoc['role'] as String?;
+      }
+    } catch (e) {
+      print('Error getting user role: $e');
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Kullanıcı oturum açmış mı kontrol ediyoruz
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator()); // Bekleme durumu
+          return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasData) {
-          return const MainMenu(); // Kullanıcı giriş yapmışsa MainMenu'ye yönlendir
+          // Kullanıcı oturumu açmışsa rolünü kontrol et
+          return FutureBuilder<String?>(
+            future: getUserRole(snapshot.data!.uid),
+            builder: (context, roleSnapshot) {
+              if (roleSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (roleSnapshot.hasData) {
+                final role = roleSnapshot.data;
+
+                if (role == 'admin') {
+                  return const AdminMenu(); // Rol 'admin' ise AdminMenu'ya yönlendir
+                } else if (role == 'attendant') {
+                  return const AttendantMenu(); // Rol 'attendant' ise AttendantMenu'ya yönlendir
+                } else {
+                  return const MainMenu(); // Diğer roller için MainMenu'ye yönlendir
+                }
+              } else {
+                return const AdminLoginPage(); // Rol bulunamazsa veya oturum açılmamışsa AdminLoginPage'e yönlendir
+              }
+            },
+          );
         } else {
           return const AdminLoginPage(); // Kullanıcı giriş yapmamışsa AdminLoginPage'e yönlendir
         }

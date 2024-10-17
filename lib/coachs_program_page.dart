@@ -248,56 +248,64 @@ class _CoachsProgramPageState extends State<CoachsProgramPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 40,
-                              backgroundColor: ThemeData().primaryColor,
-                              backgroundImage: selectedStudentDetails!['profilePicUrl'] != null
-                                  ? NetworkImage(selectedStudentDetails!['profilePicUrl'])
-                                  : null,
-                              child: selectedStudentDetails!['profilePicUrl'] == null
-                                  ? Text(
-                                      (selectedStudentDetails!['firstName'][0] +
-                                          selectedStudentDetails!['lastName'][0])
-                                          .toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 20),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${selectedStudentDetails!['firstName']} ${selectedStudentDetails!['lastName']}',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 40,
+                                backgroundColor: ThemeData().primaryColor,
+                                backgroundImage: selectedStudentDetails!['profilePicUrl'] != null
+                                    ? NetworkImage(selectedStudentDetails!['profilePicUrl'])
+                                    : null,
+                                child: selectedStudentDetails!['profilePicUrl'] == null
+                                    ? Text(
+                                        (selectedStudentDetails!['firstName'][0] +
+                                            selectedStudentDetails!['lastName'][0])
+                                            .toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 20),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${selectedStudentDetails!['firstName']} ${selectedStudentDetails!['lastName']}',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                // Burada seansa özel branch bilgisi gösteriliyor
-                                Text(
-                                  'Branş: $selectedBranch',
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ],
-                            ),
-                          ],
+                                  const SizedBox(height: 8),
+                                  // Burada seansa özel branch bilgisi gösteriliyor
+                                  Text(
+                                    'Branş: $selectedBranch',
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 20),
-                        Text(
-                          'Kilo: ${selectedStudentDetails!['weight'] ?? 'Bilinmiyor'} kg',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Boy: ${selectedStudentDetails!['height'] ?? 'Bilinmiyor'} cm',
-                          style: const TextStyle(fontSize: 16),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Kilo: ${selectedStudentDetails!['weight'] ?? 'Bilinmiyor'} kg',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Boy: ${selectedStudentDetails!['height'] ?? 'Bilinmiyor'} cm',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

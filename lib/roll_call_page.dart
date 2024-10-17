@@ -7,7 +7,8 @@ import 'package:sportapp/month_page.dart';
 
 class RollCallPage extends StatefulWidget {
   final DateTime? selectedDate;
-  const RollCallPage({super.key, this.selectedDate});
+  final String? coachId;
+  const RollCallPage({super.key, this.selectedDate, this.coachId});
 
   @override
   State<RollCallPage> createState() => _RollCallPageState();
@@ -41,7 +42,7 @@ class _RollCallPageState extends State<RollCallPage> {
     if (currentUser != null) {
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(currentUser!.uid)
+          .doc(widget.coachId ?? currentUser!.uid)
           .collection('rollcall')
           .doc(todayDate) // Bugünün tarihine göre belge
           .collection('students')
@@ -104,7 +105,7 @@ class _RollCallPageState extends State<RollCallPage> {
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('users')
-                        .doc(currentUser!.uid)
+                        .doc(widget.coachId ?? currentUser!.uid)
                         .collection('students')
                         .snapshots(),
                     builder: (context, snapshot) {
@@ -125,16 +126,16 @@ class _RollCallPageState extends State<RollCallPage> {
                             String studentName =
                                 '${studentData['firstName']} ${studentData['lastName']}';
 
-                            return FutureBuilder<DocumentSnapshot>(
-                              // Seçilen tarihteki yoklama durumunu kontrol et
-                              future: FirebaseFirestore.instance
+                            return StreamBuilder<DocumentSnapshot>(
+                              // Anlık yoklama durumunu dinle
+                              stream: FirebaseFirestore.instance
                                   .collection('users')
-                                  .doc(currentUser!.uid)
+                                  .doc(widget.coachId ?? currentUser!.uid)
                                   .collection('rollcall')
                                   .doc(todayDate)
                                   .collection('students')
                                   .doc(studentId)
-                                  .get(),
+                                  .snapshots(),
                               builder: (context, rollcallSnapshot) {
                                 if (rollcallSnapshot.connectionState ==
                                     ConnectionState.waiting) {
@@ -148,49 +149,57 @@ class _RollCallPageState extends State<RollCallPage> {
                                   // Eğer veri varsa yoklama durumu alınır
                                   isPresent =
                                       rollcallSnapshot.data!['isPresent'];
-                                } else if (!rollcallSnapshot.hasData) {
-                                  return const ListTile(
-                                    title: Text('Veri yok'),
-                                  );
                                 }
 
-                                return ListTile(
-                                  title: Text(studentName),
-                                  subtitle: Text(
-                                      'Yoklama durumu: ${isPresent == null ? "Henüz alınmadı" : (isPresent ? "Var olarak işaretlendi" : "Yok olarak işaretlendi")}'),
-                                  trailing: isTodaySelected
-                                      ? Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.check,
-                                                color: isPresent == true
-                                                    ? Colors.green
-                                                    : Colors.grey,
+                                Color tileColor;
+                                if (isPresent == null) {
+                                  tileColor = Colors.grey.shade300; // Henüz işaretlenmedi
+                                } else if (isPresent == true) {
+                                  tileColor = Colors.green.shade300; // Var
+                                } else {
+                                  tileColor = Colors.red.shade300; // Yok
+                                }
+
+                                return Container(
+                                  color: tileColor,
+                                  child: ListTile(
+                                    title: Text(studentName),
+                                    subtitle: Text(
+                                        'Yoklama durumu: ${isPresent == null ? "Henüz alınmadı" : (isPresent ? "Var olarak işaretlendi" : "Yok olarak işaretlendi")}'),
+                                    trailing: isTodaySelected
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.check,
+                                                  color: isPresent == true
+                                                      ? Colors.black
+                                                      : Colors.white,
+                                                ),
+                                                onPressed: () {
+                                                  // Yoklama: Var
+                                                  _markAttendance(
+                                                      studentId, true);
+                                                },
                                               ),
-                                              onPressed: () {
-                                                // Yoklama: Var
-                                                _markAttendance(
-                                                    studentId, true);
-                                              },
-                                            ),
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.close,
-                                                color: isPresent == false
-                                                    ? Colors.red
-                                                    : Colors.grey,
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.close,
+                                                  color: isPresent == false
+                                                      ? Colors.black
+                                                      : Colors.white,
+                                                ),
+                                                onPressed: () {
+                                                  // Yoklama: Yok
+                                                  _markAttendance(
+                                                      studentId, false);
+                                                },
                                               ),
-                                              onPressed: () {
-                                                // Yoklama: Yok
-                                                _markAttendance(
-                                                    studentId, false);
-                                              },
-                                            ),
-                                          ],
-                                        )
-                                      : null, // Geçmiş günlerde yoklama değiştirilmez
+                                            ],
+                                          )
+                                        : null, // Geçmiş günlerde yoklama değiştirilmez
+                                  ),
                                 );
                               },
                             );

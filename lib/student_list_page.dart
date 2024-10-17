@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:sportapp/models/student_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'settings_page.dart'; // SettingsPage import edildi
+import 'settings_page.dart';
 import 'student_info_page.dart';
+import 'models/student_model.dart';
 
 class StudentListPage extends StatefulWidget {
-  const StudentListPage({super.key});
+  final String? coachId;  // Eğer koç id gelirse ona göre sorgu yapılacak
+
+  const StudentListPage({super.key, this.coachId});
 
   @override
   State<StudentListPage> createState() => _StudentListPageState();
@@ -18,7 +20,6 @@ class _StudentListPageState extends State<StudentListPage> {
   @override
   void initState() {
     super.initState();
-    // Giriş yapan kullanıcıyı alıyoruz
     currentUser = FirebaseAuth.instance.currentUser;
   }
 
@@ -26,7 +27,7 @@ class _StudentListPageState extends State<StudentListPage> {
     try {
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(currentUser!.uid)
+          .doc(widget.coachId ?? currentUser!.uid) // Coach ID varsa onu, yoksa currentUser
           .collection('students')
           .doc(studentId)
           .delete();
@@ -90,7 +91,7 @@ class _StudentListPageState extends State<StudentListPage> {
             : StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
-                    .doc(currentUser!.uid)
+                    .doc(widget.coachId ?? currentUser!.uid) // Coach ID varsa onu, yoksa currentUser
                     .collection('students')
                     .snapshots(),
                 builder: (context, snapshot) {
@@ -134,6 +135,7 @@ class _StudentListPageState extends State<StudentListPage> {
                         role: studentData['role'],
                         paymentStatus: studentData['paymentStatus'],
                         sessions: sessions,
+                        coachId: studentData['coachId'],
                       );
 
                       return Dismissible(
@@ -175,7 +177,7 @@ class _StudentListPageState extends State<StudentListPage> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    StudentInfoPage(student: student),
+                                    StudentInfoPage(student: student, coachId: widget.coachId,),
                               ),
                             );
                           },

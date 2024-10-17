@@ -5,13 +5,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 class CourseSchedulePage extends StatefulWidget {
   final String studentName;
   final List<String> availableBranches;
-  final String studentId; // Öğrencinin ID'si
+  final String studentId;
+  final String? coachId;
 
   const CourseSchedulePage({
     super.key,
     required this.studentName,
     required this.availableBranches,
     required this.studentId,
+    this.coachId,
   });
 
   @override
@@ -54,7 +56,7 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
     if (currentUser != null) {
       return FirebaseFirestore.instance
           .collection('users')
-          .doc(currentUser.uid)
+          .doc(widget.coachId ?? currentUser.uid)
           .collection('students')
           .doc(widget.studentId)
           .snapshots();
@@ -113,10 +115,11 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
       String day, String hour, String branch) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
+      print("coach ${widget.coachId}");
       if (currentUser != null) {
         DocumentReference studentDocRef = FirebaseFirestore.instance
             .collection('users')
-            .doc(currentUser.uid)
+            .doc(widget.coachId ?? currentUser.uid)
             .collection('students')
             .doc(widget.studentId);
 

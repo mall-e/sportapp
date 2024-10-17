@@ -1,7 +1,9 @@
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:sportapp/main.dart';
+import 'package:sportapp/attendant_menu.dart';
+import 'package:sportapp/admin/admin_menu.dart'; // AdminMenu sayfasını ekledik
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -11,10 +13,10 @@ class AdminLoginPage extends StatefulWidget {
 }
 
 class _AdminLoginPageState extends State<AdminLoginPage> {
-  final _auth = FirebaseAuth.instance; // Firebase Auth instance
+  final _auth = FirebaseAuth.instance;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false; // To show a loading indicator during login
+  bool _isLoading = false;
 
   void _login() async {
     setState(() {
@@ -26,31 +28,76 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       String password = _passwordController.text.trim();
 
       // Firebase email & password ile giriş yapma
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
-
-      // Giriş başarılı olduğunda MainMenu'ya yönlendir
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainMenu()),
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-    } on FirebaseAuthException catch (e) {
-      // Giriş başarısız olduğunda hata mesajı göster
-      String message = '';
-      if (e.code == 'user-not-found') {
-        message = 'Kullanıcı bulunamadı.';
-      } else if (e.code == 'wrong-password') {
-        message = 'Hatalı şifre girdiniz.';
+
+      // Giriş başarılı olduğunda kullanıcının rolünü kontrol et
+      String userId = userCredential.user!.uid;
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (!mounted) return; // Widget'ın hala aktif olup olmadığını kontrol ediyoruz
+
+      if (userDoc.exists) {
+        String? role = userDoc['role'] as String?;
+
+        if (role == 'admin') {
+          // Rol 'admin' ise AdminMenu'ya yönlendir
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminMenu()),
+          );
+        } else if (role == 'attendant') {
+          // Rol 'attendant' ise AttendantMenu'ya yönlendir
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const AttendantMenu()),
+          );
+        } else {
+          // Diğer roller için MainMenu'ya yönlendir
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainMenu()),
+          );
+        }
       } else {
-        message = 'Giriş başarısız oldu: ${e.message}';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Kullanıcı rolü bulunamadı.')),
+          );
+        }
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        String message = '';
+        if (e.code == 'user-not-found') {
+          message = 'Kullanıcı bulunamadı.';
+        } else if (e.code == 'wrong-password') {
+          message = 'Hatalı şifre girdiniz.';
+        } else {
+          message = 'Giriş başarısız oldu: ${e.message}';
+        }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bir hata oluştu: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
