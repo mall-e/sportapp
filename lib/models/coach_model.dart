@@ -6,6 +6,7 @@ class Coach {
   final String lastName;
   final String email;
   final String? profilePictureUrl; // Koçun profil resmi (isteğe bağlı)
+  final List<String> branches; // Branşlar listesi (String listesi)
 
   Coach({
     required this.id,
@@ -13,6 +14,7 @@ class Coach {
     required this.lastName,
     required this.email,
     this.profilePictureUrl,
+    required this.branches, // Branş listesi zorunlu alan
   });
 
   // Firestore'dan veri çekerken kullanılan factory method
@@ -24,6 +26,7 @@ class Coach {
       lastName: data['lastName'] ?? '',
       email: data['email'] ?? '',
       profilePictureUrl: data['profilePictureUrl'], // Eğer profil resmi varsa kullanır
+      branches: List<String>.from(data['branches'] ?? []), // Firestore'daki 'branches' alanını string listesi olarak alır
     );
   }
 
@@ -34,6 +37,7 @@ class Coach {
       'lastName': lastName,
       'email': email,
       'profilePictureUrl': profilePictureUrl,
+      'branches': branches, // Branşlar alanı String listesi olarak kaydedilecek
     };
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sportapp/add_student_page.dart';
+import 'package:sportapp/admin/admin_session_control_page.dart';
 import 'package:sportapp/admin/coach_creation_page.dart';
 import 'package:sportapp/admin/coachs_list_page.dart';
 import 'package:sportapp/widgets/custom_appbar.dart';
@@ -46,6 +47,12 @@ class _AdminMenuState extends State<AdminMenu> {
             title: const Text('Yoklama Düzenleme'),
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const CoachListPage(whichCase: 2,)));
+            },
+          ),
+          ListTile(
+            title: const Text('Koç Seans Düzenleme'),
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const CoachListPage(whichCase: 4,)));
             },
           ),
         ],

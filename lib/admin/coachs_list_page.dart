@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:sportapp/add_student_page.dart';
+import 'package:sportapp/admin/admin_session_control_page.dart';
 import 'package:sportapp/admin/coach_profile_page.dart';
 import 'package:sportapp/roll_call_page.dart';
 import 'package:sportapp/student_list_page.dart';
@@ -82,6 +83,15 @@ class CoachListPage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => AddStudentPage(
+                              coachId: coachData.id), // Koç profil sayfası
+                        ),
+                      );
+                      break;
+                      case 4:
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdminSessionControlPage(
                               coachId: coachData.id), // Koç profil sayfası
                         ),
                       );

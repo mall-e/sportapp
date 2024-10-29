@@ -44,14 +44,27 @@ class CoachProfilePage extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'İsim: ${coach.firstName} ${coach.lastName}',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Email: ${coach.email}',
-                  style: TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: 16),
                 ),
-                // Diğer bilgiler varsa onları da ekleyebilirsiniz
+                const SizedBox(height: 16),
+                const Text(
+                  'Branşlar:',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                // Branşlar listeleniyor
+                if (coach.branches != null && coach.branches.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: coach.branches.map((branch) => Text('- $branch')).toList(),
+                  )
+                else
+                  const Text('Branş bilgisi yok.'),
               ],
             ),
           );

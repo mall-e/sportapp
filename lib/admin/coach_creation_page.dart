@@ -15,7 +15,9 @@ class _CoachCreationPageState extends State<CoachCreationPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _branchController = TextEditingController();
 
+  List<String> _branches = []; // Sadece branş listesi
   bool _isLoading = false;
   String? _adminEmail;
   String? _adminPassword;
@@ -27,7 +29,6 @@ class _CoachCreationPageState extends State<CoachCreationPage> {
     User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       _adminEmail = currentUser.email;
-      // Admin şifresini manuel olarak saklayın (veya güvenli bir şekilde elde edin)
       _adminPassword = "your_admin_password"; // Bu şifreyi manuel olarak alın veya güvenli bir şekilde saklayın
     }
   }
@@ -54,10 +55,11 @@ class _CoachCreationPageState extends State<CoachCreationPage> {
             'lastName': _lastNameController.text.trim(),
             'email': _emailController.text.trim(),
             'role': 'coach',
+            'branches': _branches, // Sadece branş listesi kaydediliyor
           });
         }
 
-        // Yeni kullanıcı oluşturulduktan sonra admin kullanıcıya geri dön
+        // Admin kullanıcıya geri dön
         if (_adminEmail != null && _adminPassword != null) {
           await FirebaseAuth.instance.signOut(); // Yeni oluşturulan kullanıcıyı çıkış yap
           await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -143,6 +145,50 @@ class _CoachCreationPageState extends State<CoachCreationPage> {
                     return 'Şifre en az 6 karakter olmalıdır';
                   }
                   return null;
+                },
+              ),
+              const SizedBox(height: 32.0),
+              // Branş ekleme kısmı
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _branchController,
+                      decoration: const InputDecoration(labelText: 'Branş'),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_branchController.text.isNotEmpty) {
+                        setState(() {
+                          _branches.add(_branchController.text);
+                          _branchController.clear();
+                        });
+                      }
+                    },
+                    child: const Text('Ekle'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+              // Eklenen branşların gösterildiği kısım
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _branches.length,
+                itemBuilder: (context, index) {
+                  final branch = _branches[index];
+                  return ListTile(
+                    title: Text(branch),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () {
+                        setState(() {
+                          _branches.removeAt(index);
+                        });
+                      },
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 32.0),
