@@ -89,39 +89,90 @@ class _AdminSessionControlPageState extends State<AdminSessionControlPage> {
   }
 
   // Seçim ekranı: Hoca'nın branşlarını seçme ve saati kaydetme
-  void _onCellTap(String day, String hour) async {
-    if (coachBranches.isNotEmpty) {
-      // Branş seçim ekranı
-      String? selectedBranch = await showDialog<String>(
-        context: context,
-        builder: (context) {
-          return SimpleDialog(
-            title: const Text('Branş Seç'),
-            children: coachBranches.map((branch) {
-              return SimpleDialogOption(
-                onPressed: () {
-                  Navigator.pop(context, branch); // Seçilen branşı döndür
-                },
-                child: Text(branch),
-              );
-            }).toList(),
-          );
-        },
-      );
+  // Seçim ekranı: Hoca'nın branşlarını seçme ve saati kaydetme veya kaldırma
+void _onCellTap(String day, String hour) async {
+  if (schedule[day]![hour]!.isNotEmpty) {
+    // Zaten oturum varsa, mevcut branşları listeler ve kaldırmak istediğini sorar
+    String? selectedBranchToRemove = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: const Text('Oturumu Kaldır'),
+          children: schedule[day]![hour]!.map((session) {
+            String branch = session['branch'] ?? '';
+            return SimpleDialogOption(
+              onPressed: () {
+                Navigator.pop(context, branch);
+              },
+              child: Text('$branch oturumunu kaldır'),
+            );
+          }).toList(),
+        );
+      },
+    );
 
-      if (selectedBranch != null) {
-        // Seçilen branşı kaydet ve ekrana ekle
-        setState(() {
-          schedule[day]![hour]?.add({
-            'branch': selectedBranch,
-          });
+    if (selectedBranchToRemove != null) {
+      // Seçilen branşı kaldır
+      setState(() {
+        schedule[day]![hour] = schedule[day]![hour]!
+            .where((session) => session['branch'] != selectedBranchToRemove)
+            .toList();
+      });
+
+      // Firestore'dan oturumu kaldırıyoruz
+      _removeSessionFromFirestore(day, hour, selectedBranchToRemove);
+      return;
+    }
+  } else if (coachBranches.isNotEmpty) {
+    // Oturum yoksa, branş seçtirme ekranını göster
+    String? selectedBranch = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: const Text('Branş Seç'),
+          children: coachBranches.map((branch) {
+            return SimpleDialogOption(
+              onPressed: () {
+                Navigator.pop(context, branch); // Seçilen branşı döndür
+              },
+              child: Text(branch),
+            );
+          }).toList(),
+        );
+      },
+    );
+
+    if (selectedBranch != null) {
+      // Seçilen branşı kaydet ve ekrana ekle
+      setState(() {
+        schedule[day]![hour]?.add({
+          'branch': selectedBranch,
         });
+      });
 
-        // Firestore'da 'sessions' verisine ekleyelim
-        _saveSessionToFirestore(day, hour, selectedBranch);
-      }
+      // Firestore'da 'sessions' verisine ekle
+      _saveSessionToFirestore(day, hour, selectedBranch);
     }
   }
+}
+
+// Firestore'da 'sessions' verisinden belirtilen branşı kaldırma
+Future<void> _removeSessionFromFirestore(String day, String hour, String branch) async {
+  if (widget.coachId != null) {
+    final coachRef = FirebaseFirestore.instance.collection('users').doc(widget.coachId);
+
+    await coachRef.update({
+      'sessions': FieldValue.arrayRemove([
+        {
+          'day': day,
+          'clock': hour,
+          'branch': branch,
+        }
+      ])
+    });
+  }
+}
+
 
   // Firestore'da 'sessions' verisine kaydetme
   Future<void> _saveSessionToFirestore(String day, String hour, String branch) async {

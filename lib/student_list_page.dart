@@ -6,7 +6,7 @@ import 'student_info_page.dart';
 import 'models/student_model.dart';
 
 class StudentListPage extends StatefulWidget {
-  final String? coachId;  // Eğer koç id gelirse ona göre sorgu yapılacak
+  final String? coachId; // Eğer koç id gelirse ona göre sorgu yapılacak
 
   const StudentListPage({super.key, this.coachId});
 
@@ -27,7 +27,8 @@ class _StudentListPageState extends State<StudentListPage> {
     try {
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.coachId ?? currentUser!.uid) // Coach ID varsa onu, yoksa currentUser
+          .doc(widget.coachId ??
+              currentUser!.uid) // Coach ID varsa onu, yoksa currentUser
           .collection('students')
           .doc(studentId)
           .delete();
@@ -91,7 +92,9 @@ class _StudentListPageState extends State<StudentListPage> {
             : StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
-                    .doc(widget.coachId ?? currentUser!.uid) // Coach ID varsa onu, yoksa currentUser
+                    .doc(widget.coachId ??
+                        currentUser!
+                            .uid) // Coach ID varsa onu, yoksa currentUser
                     .collection('students')
                     .snapshots(),
                 builder: (context, snapshot) {
@@ -113,7 +116,10 @@ class _StudentListPageState extends State<StudentListPage> {
                       var studentData = snapshot.data!.docs[index];
 
                       List<Map<String, String>> sessions = [];
-                      if (studentData['sessions'] != null) {
+                      if (studentData.data() != null &&
+                          (studentData.data() as Map<String, dynamic>)
+                              .containsKey('sessions') &&
+                          studentData['sessions'] != null) {
                         sessions = List<Map<String, String>>.from(
                           (studentData['sessions'] as List<dynamic>).map(
                             (session) => Map<String, String>.from(
@@ -129,8 +135,10 @@ class _StudentListPageState extends State<StudentListPage> {
                         age: studentData['age'],
                         height: (studentData['height'] as num).toDouble(),
                         weight: (studentData['weight'] as num).toDouble(),
-                        branches: List<String>.from(studentData['branches'] ?? []),
-                        branchExperiences: Map<String, String>.from(studentData['branchExperiences'] ?? {}),
+                        branches:
+                            List<String>.from(studentData['branches'] ?? []),
+                        branchExperiences: Map<String, String>.from(
+                            studentData['branchExperiences'] ?? {}),
                         healthProblem: studentData['healthProblem'],
                         role: studentData['role'],
                         paymentStatus: studentData['paymentStatus'],
@@ -162,7 +170,8 @@ class _StudentListPageState extends State<StudentListPage> {
                             child: Text(
                                 '${student.firstName[0]}${student.lastName[0]}'),
                           ),
-                          title: Text('${student.firstName} ${student.lastName}'),
+                          title:
+                              Text('${student.firstName} ${student.lastName}'),
                           subtitle: Text('Yaş: ${student.age}'),
                           trailing: Icon(
                             student.paymentStatus ?? false
@@ -176,8 +185,10 @@ class _StudentListPageState extends State<StudentListPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    StudentInfoPage(student: student, coachId: widget.coachId,),
+                                builder: (context) => StudentInfoPage(
+                                  student: student,
+                                  coachId: widget.coachId,
+                                ),
                               ),
                             );
                           },

@@ -2,8 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:sportapp/month_page.dart';
 
 class RollCallPage extends StatefulWidget {
   final DateTime? selectedDate;
@@ -16,203 +14,379 @@ class RollCallPage extends StatefulWidget {
 
 class _RollCallPageState extends State<RollCallPage> {
   User? currentUser;
-  String todayDate = ""; // Bugünün tarihi
-  String monthName = ''; // Ayın adı
-  int daysInMonth = 0; // Ayın gün sayısı
+  List availableSessions = [];
+  String currentDay = '';
+  String formattedDate = '';
+  bool isLoading = true;
+  String? errorMessage;
+  DateTime selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    currentUser = FirebaseAuth.instance.currentUser; // Giriş yapan kullanıcıyı al
-
-    // Yerelleştirmeyi başlat
-    initializeDateFormatting('tr_TR', null).then((_) {
-      setState(() {
-        todayDate = DateFormat('yyyy-MM-dd')
-            .format(widget.selectedDate == null ? DateTime.now() : widget.selectedDate!);
-        DateTime now = widget.selectedDate == null ? DateTime.now() : widget.selectedDate!;
-        monthName = DateFormat('MMMM', 'tr_TR').format(now); // Ayın adı
-        daysInMonth = DateTime(now.year, now.month + 1, 0).day; // Bulunduğunuz ayın gün sayısını hesapla
-      });
-    });
+    currentUser = FirebaseAuth.instance.currentUser;
+    _initializeDayAndDate(selectedDate);
+    _fetchAvailableSessions();
   }
 
-  // Öğrencinin yoklama durumunu kaydetme fonksiyonu
-  Future<void> _markAttendance(String studentId, bool isPresent) async {
-    if (currentUser != null) {
+  void _initializeDayAndDate(DateTime date) {
+    formattedDate = DateFormat('yyyy-MM-dd').format(date);
+
+    Map<int, String> dayAbbreviations = {
+      1: 'Pzt',
+      2: 'Sal',
+      3: 'Çrş',
+      4: 'Prş',
+      5: 'Cum',
+      6: 'Cmt',
+      7: 'Paz',
+    };
+    currentDay = dayAbbreviations[date.weekday] ?? '';
+  }
+
+  Future<void> _fetchAvailableSessions() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      if (widget.coachId == null) {
+        setState(() {
+          errorMessage = 'Koç bilgisi bulunamadı';
+          isLoading = false;
+        });
+        return;
+      }
+
+      DocumentSnapshot coachSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.coachId)
+          .get();
+
+      if (!coachSnapshot.exists) {
+        setState(() {
+          errorMessage = 'Koç bilgisi bulunamadı';
+          isLoading = false;
+        });
+        return;
+      }
+
+      final data = coachSnapshot.data() as Map<String, dynamic>?;
+      if (data == null) {
+        setState(() {
+          errorMessage = 'Koç verisi bulunamadı';
+          isLoading = false;
+        });
+        return;
+      }
+
+      final sessions = data['sessions'] as List<dynamic>?;
+      if (sessions == null) {
+        setState(() {
+          errorMessage = 'Ders programı henüz oluşturulmamış';
+          isLoading = false;
+        });
+        return;
+      }
+
+      List filteredSessions = sessions.where((session) {
+        if (session is Map<String, dynamic>) {
+          return session['day'] == currentDay &&
+              session.containsKey('branch') &&
+              session.containsKey('clock');
+        }
+        return false;
+      }).toList();
+
+      setState(() {
+        availableSessions = filteredSessions;
+        isLoading = false;
+        if (availableSessions.isEmpty) {
+          errorMessage = 'Bu gün için yoklama alınmamıştır';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Veriler yüklenirken bir hata oluştu: ${e.toString()}';
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (pickedDate != null && pickedDate != selectedDate) {
+      setState(() {
+        selectedDate = pickedDate;
+      });
+      _initializeDayAndDate(selectedDate);
+      _fetchAvailableSessions();
+    }
+  }
+
+
+  Future<void> _markAttendance(
+      String studentId, String clock, String branch, bool isPresent) async {
+    try {
+      if (currentUser == null || widget.coachId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Oturum bilgisi bulunamadı')),
+        );
+        return;
+      }
+
+      // Seçilen tarihe göre yoklama kaydı
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.coachId ?? currentUser!.uid)
+          .doc(widget.coachId)
           .collection('rollcall')
-          .doc(todayDate) // Bugünün tarihine göre belge
-          .collection('students')
+          .doc(formattedDate)
+          .set({
+        'date': formattedDate,
+      }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.coachId)
+          .collection('rollcall')
+          .doc(formattedDate)
+          .collection(clock)
+          .doc('info')
+          .set({
+        'branch': branch,
+      }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.coachId)
+          .collection('rollcall')
+          .doc(formattedDate)
+          .collection(clock)
           .doc(studentId)
           .set({
         'isPresent': isPresent,
         'timestamp': FieldValue.serverTimestamp(),
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Yoklama ${isPresent ? 'var' : 'yok'} olarak kaydedildi'),
+          backgroundColor: isPresent ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Yoklama kaydedilirken hata oluştu: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  // BottomSheet'i açma fonksiyonu
-  void _openMonthBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return MonthPage(
-          monthName: monthName,
-          daysInMonth: daysInMonth,
-          selectedMonth: DateTime.now().month,
-        );
-      },
-    );
-  }
+  Widget _buildStudentsList(String clock, String branch) {
+  bool isToday = formattedDate == DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.coachId)
+        .collection('students')
+        .where('sessions', arrayContainsAny: [
+      {'day': currentDay, 'clock': clock, 'branch': branch}
+    ]).snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return Center(child: Text('Bir hata oluştu: ${snapshot.error}'));
+      }
+
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        return const Center(child: Text('Öğrenci bulunamadı.'));
+      }
+
+      return ListView.builder(
+        itemCount: snapshot.data!.docs.length,
+        itemBuilder: (context, index) {
+          var studentData = snapshot.data!.docs[index];
+          String studentId = studentData.id;
+          String studentName =
+              '${studentData.get('firstName') ?? ''} ${studentData.get('lastName') ?? ''}'
+                  .trim();
+          if (studentName.isEmpty) studentName = 'İsimsiz Öğrenci';
+
+          return StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(widget.coachId)
+                .collection('rollcall')
+                .doc(formattedDate)
+                .collection(clock)
+                .doc(studentId)
+                .snapshots(),
+            builder: (context, rollcallSnapshot) {
+              if (rollcallSnapshot.connectionState ==
+                  ConnectionState.waiting) {
+                return const ListTile(
+                  title: Text('Yükleniyor...'),
+                  trailing: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+
+              bool? isPresent;
+              if (rollcallSnapshot.hasData && rollcallSnapshot.data!.exists) {
+                isPresent = rollcallSnapshot.data!.get('isPresent') as bool?;
+              }
+
+              Color tileColor;
+              if (isPresent == null) {
+                tileColor = Colors.grey.shade300;
+              } else if (isPresent) {
+                tileColor = Colors.green.shade300;
+              } else {
+                tileColor = Colors.red.shade300;
+              }
+
+              return Container(
+                color: tileColor,
+                child: ListTile(
+                  title: Text(studentName),
+                  subtitle: Text(
+                      'Yoklama durumu: ${isPresent == null ? "Henüz alınmadı" : (isPresent ? "Var olarak işaretlendi" : "Yok olarak işaretlendi")}'),
+                  trailing: isToday
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.check,
+                                color: isPresent == true
+                                    ? Colors.black
+                                    : Colors.white,
+                              ),
+                              onPressed: () => _markAttendance(
+                                  studentId, clock, branch, true),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.close,
+                                color: isPresent == false
+                                    ? Colors.black
+                                    : Colors.white,
+                              ),
+                              onPressed: () => _markAttendance(
+                                  studentId, clock, branch, false),
+                            ),
+                          ],
+                        )
+                      : null, // Yalnızca bugünkü tarih seçiliyken yoklama yapılabilir
+                ),
+              );
+            },
+          );
+        },
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
-    DateTime now = DateTime.now();
-    bool isTodaySelected = widget.selectedDate == null ||
-        (widget.selectedDate!.year == now.year &&
-            widget.selectedDate!.month == now.month &&
-            widget.selectedDate!.day == now.day);
+    bool isToday =
+        formattedDate == DateFormat('yyyy-MM-dd').format(DateTime.now());
+    String title = isToday ? 'Bugünün Yoklaması' : '$formattedDate Yoklaması';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$todayDate'), // Tarih AppBar'ın title'ı olarak gösteriliyor
+        title: Text(title),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_today), // Takvim ikonunu göster
-            onPressed: () {
-              _openMonthBottomSheet(context); // BottomSheet'i aç
-            },
+            icon: Icon(Icons.calendar_today),
+            onPressed: () => _selectDate(context),
           ),
         ],
-        leading: isTodaySelected
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  Navigator.pop(context); // Geri gitme fonksiyonu
-                },
-              ),
       ),
       body: currentUser == null
           ? const Center(child: Text('Kullanıcı giriş yapmamış'))
-          : Column(
-              children: [
-                // Bugünün tarihi, artık AppBar'da gösteriliyor
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(widget.coachId ?? currentUser!.uid)
-                        .collection('students')
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return const Center(child: Text('Bir hata oluştu.'));
-                      }
+          : isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : errorMessage != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 48, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(
+                            errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _fetchAvailableSessions,
+                            child: const Text('Tekrar Dene'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : availableSessions.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.event_busy,
+                                  size: 48, color: Colors.grey),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Bu gün için ders bulunmamaktadır.',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            Expanded(
+                              child: ListView.builder(
+                                itemCount: availableSessions.length,
+                                itemBuilder: (context, index) {
+                                  var session = availableSessions[index];
+                                  String branch =
+                                      session['branch'] ?? 'Bilinmeyen Branş';
+                                  String clock =
+                                      session['clock'] ?? 'Bilinmeyen Saat';
 
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                        return ListView.builder(
-                          itemCount: snapshot.data!.docs.length,
-                          itemBuilder: (context, index) {
-                            var studentData = snapshot.data!.docs[index];
-                            String studentId = studentData.id;
-                            String studentName =
-                                '${studentData['firstName']} ${studentData['lastName']}';
-
-                            return StreamBuilder<DocumentSnapshot>(
-                              // Anlık yoklama durumunu dinle
-                              stream: FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(widget.coachId ?? currentUser!.uid)
-                                  .collection('rollcall')
-                                  .doc(todayDate)
-                                  .collection('students')
-                                  .doc(studentId)
-                                  .snapshots(),
-                              builder: (context, rollcallSnapshot) {
-                                if (rollcallSnapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Center(
-                                      child: CircularProgressIndicator());
-                                }
-
-                                bool? isPresent;
-                                if (rollcallSnapshot.hasData &&
-                                    rollcallSnapshot.data!.exists) {
-                                  // Eğer veri varsa yoklama durumu alınır
-                                  isPresent =
-                                      rollcallSnapshot.data!['isPresent'];
-                                }
-
-                                Color tileColor;
-                                if (isPresent == null) {
-                                  tileColor = Colors.grey.shade300; // Henüz işaretlenmedi
-                                } else if (isPresent == true) {
-                                  tileColor = Colors.green.shade300; // Var
-                                } else {
-                                  tileColor = Colors.red.shade300; // Yok
-                                }
-
-                                return Container(
-                                  color: tileColor,
-                                  child: ListTile(
-                                    title: Text(studentName),
-                                    subtitle: Text(
-                                        'Yoklama durumu: ${isPresent == null ? "Henüz alınmadı" : (isPresent ? "Var olarak işaretlendi" : "Yok olarak işaretlendi")}'),
-                                    trailing: isTodaySelected
-                                        ? Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.check,
-                                                  color: isPresent == true
-                                                      ? Colors.black
-                                                      : Colors.white,
-                                                ),
-                                                onPressed: () {
-                                                  // Yoklama: Var
-                                                  _markAttendance(
-                                                      studentId, true);
-                                                },
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.close,
-                                                  color: isPresent == false
-                                                      ? Colors.black
-                                                      : Colors.white,
-                                                ),
-                                                onPressed: () {
-                                                  // Yoklama: Yok
-                                                  _markAttendance(
-                                                      studentId, false);
-                                                },
-                                              ),
-                                            ],
-                                          )
-                                        : null, // Geçmiş günlerde yoklama değiştirilmez
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        );
-                      } else {
-                        return const Center(child: Text('Öğrenci bulunamadı.'));
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
+                                  return ExpansionTile(
+                                    title: Text('$branch - Saat: $clock'),
+                                    children: [
+                                      SizedBox(
+                                        height: 400,
+                                        child:
+                                            _buildStudentsList(clock, branch),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
     );
   }
 }
