@@ -57,6 +57,23 @@ class _AddStudentPageState extends State<AddStudentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Öğrenci Ekle"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.group_add),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ExistingStudentsPage(coachId: widget.coachId ?? ''),
+                ),
+              );
+            },
+            tooltip: "Var Olan Öğrencileri Görüntüle",
+          ),
+        ],
+      ),
         body: SafeArea(
       child: Column(
         children: [
@@ -292,6 +309,191 @@ class _AddStudentInformationState extends State<AddStudentInformation> {
             child: Text('Öğrenciyi Ekle'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class ExistingStudentsPage extends StatefulWidget {
+  final String coachId;
+
+  const ExistingStudentsPage({Key? key, required this.coachId}) : super(key: key);
+
+  @override
+  _ExistingStudentsPageState createState() => _ExistingStudentsPageState();
+}
+
+class _ExistingStudentsPageState extends State<ExistingStudentsPage> {
+  List<String> coachBranches = [];
+
+  Future<void> _getCoachBranches() async {
+    // Koçun branşlarını çek
+    DocumentSnapshot coachDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.coachId)
+        .get();
+
+    if (coachDoc.exists) {
+      coachBranches = List<String>.from(coachDoc.get('branches') ?? []);
+    }
+  }
+
+  Future<List<Student>> _getFilteredStudents() async {
+    List<Student> filteredStudents = [];
+    
+    // Tüm kullanıcıları getir
+    QuerySnapshot coachesSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .get();
+
+    // Her koçun öğrencilerini kontrol et
+    for (var coach in coachesSnapshot.docs) {
+      QuerySnapshot studentsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(coach.id)
+          .collection('students')
+          .get();
+
+      // Öğrencileri filtreleyerek listeye ekle
+      for (var studentDoc in studentsSnapshot.docs) {
+        Map<String, dynamic> data = studentDoc.data() as Map<String, dynamic>;
+        Student student = Student.fromMap(data);
+        student.id = studentDoc.id;
+        student.originalCoachId = coach.id;
+        
+        // Öğrencinin branşları koçun branşlarından herhangi birini içeriyorsa ekle
+        if (student.branches.any((branch) => coachBranches.contains(branch))) {
+          filteredStudents.add(student);
+        }
+      }
+    }
+
+    return filteredStudents;
+  }
+
+  Future<bool> _isStudentAlreadyAdded(String studentId) async {
+    final existingStudent = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.coachId)
+        .collection('students')
+        .where('id', isEqualTo: studentId)
+        .get();
+
+    return existingStudent.docs.isNotEmpty;
+  }
+
+  Future<void> _addStudentToCoach(BuildContext context, Student student) async {
+    try {
+      if (await _isStudentAlreadyAdded(student.id)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bu öğrenci zaten mevcut.')),
+        );
+        return;
+      }
+
+      // Öğrenciyi ekle
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.coachId)
+          .collection('students')
+          .add(student.toMap());
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Öğrenci başarıyla eklendi!')),
+      );
+
+      // Öğrenci eklendikten sonra listeyi güncelle
+      setState(() {}); // Sayfayı yenilemek için setState ile çağırma
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Öğrenci eklenirken hata oluştu: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Var Olan Öğrenciler'),
+      ),
+      body: FutureBuilder(
+        future: _getCoachBranches(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Hata: ${snapshot.error}'));
+          }
+
+          return FutureBuilder<List<Student>>(
+            future: _getFilteredStudents(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Hata: ${snapshot.error}'));
+              }
+
+              final students = snapshot.data ?? [];
+
+              return ListView.builder(
+                itemCount: students.length,
+                itemBuilder: (context, index) {
+                  final student = students[index];
+
+                  return FutureBuilder<bool>(
+                    future: _isStudentAlreadyAdded(student.id),
+                    builder: (context, isAddedSnapshot) {
+                      if (isAddedSnapshot.connectionState == ConnectionState.waiting) {
+                        return ListTile(
+                          title: Text('${student.firstName} ${student.lastName}'),
+                          trailing: CircularProgressIndicator(),
+                        );
+                      }
+
+                      bool isAdded = isAddedSnapshot.data ?? false;
+                      return Card(
+                        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: ListTile(
+                          title: Text('${student.firstName} ${student.lastName}'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Yaş: ${student.age}'),
+                              Text('Branşlar: ${student.branches.join(", ")}'),
+                            ],
+                          ),
+                          trailing: isAdded
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Eklendi',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ],
+                                )
+                              : IconButton(
+                                  icon: Icon(Icons.person_add),
+                                  color: Colors.blue,
+                                  onPressed: () => _addStudentToCoach(context, student),
+                                ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
       ),
     );
   }
