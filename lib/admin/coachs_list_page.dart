@@ -7,11 +7,85 @@ import 'package:sportapp/roll_call_page.dart';
 import 'package:sportapp/student_list_page.dart';
 
 class CoachListPage extends StatelessWidget {
-  final int whichCase; // Parametre ekliyoruz
+  const CoachListPage({super.key});
 
-  const CoachListPage(
-      {super.key,
-      required this.whichCase}); // Parametreyi constructor'a ekliyoruz
+  void _showOptionsDialog(BuildContext context, String coachId) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.list),
+              title: const Text('Öğrenci Listesi'),
+              onTap: () {
+                Navigator.pop(context); // Dialog'u kapat
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => StudentListPage(coachId: coachId),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add),
+              title: const Text('Öğrenci Ekle'),
+              onTap: () {
+                Navigator.pop(context); // Dialog'u kapat
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddStudentPage(coachId: coachId),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Koç Profili'),
+              onTap: () {
+                Navigator.pop(context); // Dialog'u kapat
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CoachProfilePage(coachId: coachId),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.check),
+              title: const Text('Yoklama'),
+              onTap: () {
+                Navigator.pop(context); // Dialog'u kapat
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RollCallPage(coachId: coachId),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Seans Düzenle'),
+              onTap: () {
+                Navigator.pop(context); // Dialog'u kapat
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AdminSessionControlPage(coachId: coachId),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,64 +115,14 @@ class CoachListPage extends StatelessWidget {
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               var coachData = snapshot.data!.docs[index];
+              var coachName = coachData['firstName'];
 
               return ListTile(
                 leading: CircleAvatar(
-                  child: Text('${coachData['firstName'][0]}'),
+                  child: Text(coachName[0]),
                 ),
-                title: Text('${coachData['firstName']}'),
-                onTap: () {
-                  // Eğer showStudentList parametresi true ise öğrenci listesine git
-                  // false ise koçun profiline git
-                  switch (whichCase) {
-                    case 0:
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              StudentListPage(coachId: coachData.id),
-                        ),
-                      );
-                      break;
-                    case 1:
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CoachProfilePage(
-                              coachId: coachData.id), // Koç profil sayfası
-                        ),
-                      );
-                      break;
-                    case 2:
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RollCallPage(
-                              coachId: coachData.id), // Koç profil sayfası
-                        ),
-                      );
-                      break;
-                    case 3:
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AddStudentPage(
-                              coachId: coachData.id), // Koç profil sayfası
-                        ),
-                      );
-                      break;
-                      case 4:
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AdminSessionControlPage(
-                              coachId: coachData.id), // Koç profil sayfası
-                        ),
-                      );
-                      break;
-                    default:
-                  }
-                },
+                title: Text(coachName),
+                onTap: () => _showOptionsDialog(context, coachData.id),
               );
             },
           );

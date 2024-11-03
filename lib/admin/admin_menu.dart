@@ -19,7 +19,7 @@ class _AdminMenuState extends State<AdminMenu> {
       appBar: CustomAppbar(title: 'Admin Menu',),
       body: ListView(
         children: [
-          ListTile(
+          /*ListTile(
             title: const Text('Öğrenci Ekle'),
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const CoachListPage(whichCase: 3,)));
@@ -30,7 +30,7 @@ class _AdminMenuState extends State<AdminMenu> {
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const CoachListPage(whichCase: 0,)));
             },
-          ),
+          ),*/
           ListTile(
             title: const Text('Koç Ekle'),
             onTap: () {
@@ -40,9 +40,9 @@ class _AdminMenuState extends State<AdminMenu> {
           ListTile(
             title: const Text('Koç Listesi'),
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const CoachListPage(whichCase: 1,)));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const CoachListPage()));
             },
-          ),
+          ),/*
           ListTile(
             title: const Text('Yoklama Düzenleme'),
             onTap: () {
@@ -54,7 +54,7 @@ class _AdminMenuState extends State<AdminMenu> {
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const CoachListPage(whichCase: 4,)));
             },
-          ),
+          ),*/
         ],
       )
     );

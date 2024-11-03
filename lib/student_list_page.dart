@@ -135,8 +135,7 @@ class _StudentListPageState extends State<StudentListPage> {
                         age: studentData['age'],
                         height: (studentData['height'] as num).toDouble(),
                         weight: (studentData['weight'] as num).toDouble(),
-                        branches:
-                            List<String>.from(studentData['branches'] ?? []),
+                        branches: List<String>.from(studentData['branches'] ?? []),
                         branchExperiences: Map<String, String>.from(
                             studentData['branchExperiences'] ?? {}),
                         healthProblem: studentData['healthProblem'],
