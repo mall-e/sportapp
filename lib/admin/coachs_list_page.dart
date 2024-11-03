@@ -5,93 +5,119 @@ import 'package:sportapp/admin/admin_session_control_page.dart';
 import 'package:sportapp/admin/coach_profile_page.dart';
 import 'package:sportapp/roll_call_page.dart';
 import 'package:sportapp/student_list_page.dart';
+import 'package:sportapp/widgets/colors.dart';
+import 'package:sportapp/widgets/custom_appbar.dart';
 
 class CoachListPage extends StatelessWidget {
   const CoachListPage({super.key});
 
   void _showOptionsDialog(BuildContext context, String coachId) {
     showModalBottomSheet(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      backgroundColor: AppColors.white,
       context: context,
       builder: (BuildContext context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.list),
-              title: const Text('Öğrenci Listesi'),
-              onTap: () {
-                Navigator.pop(context); // Dialog'u kapat
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => StudentListPage(coachId: coachId),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_add),
-              title: const Text('Öğrenci Ekle'),
-              onTap: () {
-                Navigator.pop(context); // Dialog'u kapat
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddStudentPage(coachId: coachId),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Koç Profili'),
-              onTap: () {
-                Navigator.pop(context); // Dialog'u kapat
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CoachProfilePage(coachId: coachId),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.check),
-              title: const Text('Yoklama'),
-              onTap: () {
-                Navigator.pop(context); // Dialog'u kapat
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RollCallPage(coachId: coachId),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Seans Düzenle'),
-              onTap: () {
-                Navigator.pop(context); // Dialog'u kapat
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AdminSessionControlPage(coachId: coachId),
-                  ),
-                );
-              },
-            ),
-          ],
+        return Container(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildOptionTile(
+                context,
+                icon: Icons.list,
+                title: 'Öğrenci Listesi',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StudentListPage(coachId: coachId),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
+              _buildOptionTile(
+                context,
+                icon: Icons.person_add,
+                title: 'Öğrenci Ekle',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddStudentPage(coachId: coachId),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
+              _buildOptionTile(
+                context,
+                icon: Icons.person,
+                title: 'Koç Profili',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CoachProfilePage(coachId: coachId),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
+              _buildOptionTile(
+                context,
+                icon: Icons.check,
+                title: 'Yoklama',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RollCallPage(coachId: coachId),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
+              _buildOptionTile(
+                context,
+                icon: Icons.settings,
+                title: 'Seans Düzenle',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AdminSessionControlPage(coachId: coachId),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildOptionTile(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap}) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.blue),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      onTap: onTap,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Koçlar Listesi'),
+      appBar: CustomAppbar(
+        title: 'Koçlar Listesi',
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -112,17 +138,34 @@ class CoachListPage extends StatelessWidget {
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(8.0),
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               var coachData = snapshot.data!.docs[index];
               var coachName = coachData['firstName'];
 
-              return ListTile(
-                leading: CircleAvatar(
-                  child: Text(coachName[0]),
+              return Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                title: Text(coachName),
-                onTap: () => _showOptionsDialog(context, coachData.id),
+                elevation: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  tileColor: AppColors.lightBlue,
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.blue,
+                    child: Text(
+                      coachName[0],
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  title: Text(
+                    coachName,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  trailing: const Icon(Icons.more_vert, color: Colors.grey),
+                  onTap: () => _showOptionsDialog(context, coachData.id),
+                ),
               );
             },
           );

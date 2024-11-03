@@ -295,24 +295,7 @@ class _StudentInfoPageState extends State<StudentInfoPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Ödeme Yapıldı mı?',
-                  style: TextStyle(fontSize: 16),
-                ),
-                Switch(
-                  value: _paymentStatus,
-                  onChanged: (value) {
-                    setState(() {
-                      _paymentStatus = value;
-                    });
-                  },
-                ),
-              ],
-            ),
+            
             SizedBox(height: 20),
             Center(
               child: ElevatedButton(

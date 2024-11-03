@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sportapp/widgets/colors.dart';
+import 'package:sportapp/widgets/custom_appbar.dart';
 import 'settings_page.dart';
 import 'student_info_page.dart';
 import 'models/student_model.dart';
 
 class StudentListPage extends StatefulWidget {
-  final String? coachId; // Eğer koç id gelirse ona göre sorgu yapılacak
+  final String? coachId;
 
   const StudentListPage({super.key, this.coachId});
 
@@ -15,7 +17,7 @@ class StudentListPage extends StatefulWidget {
 }
 
 class _StudentListPageState extends State<StudentListPage> {
-  User? currentUser; // Giriş yapan kullanıcıyı tutacak
+  User? currentUser;
 
   @override
   void initState() {
@@ -27,8 +29,7 @@ class _StudentListPageState extends State<StudentListPage> {
     try {
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.coachId ??
-              currentUser!.uid) // Coach ID varsa onu, yoksa currentUser
+          .doc(widget.coachId ?? currentUser!.uid)
           .collection('students')
           .doc(studentId)
           .delete();
@@ -53,13 +54,13 @@ class _StudentListPageState extends State<StudentListPage> {
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(false); // Hayır cevabı
+                Navigator.of(context).pop(false);
               },
               child: const Text('İptal'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(true); // Evet cevabı
+                Navigator.of(context).pop(true);
               },
               child: const Text('Sil'),
             ),
@@ -72,19 +73,8 @@ class _StudentListPageState extends State<StudentListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Öğrenci Listesi'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
-            },
-          ),
-        ],
+      appBar: CustomAppbar(
+        title: 'Koçlar Listesi',
       ),
       body: SafeArea(
         child: currentUser == null
@@ -92,9 +82,7 @@ class _StudentListPageState extends State<StudentListPage> {
             : StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
-                    .doc(widget.coachId ??
-                        currentUser!
-                            .uid) // Coach ID varsa onu, yoksa currentUser
+                    .doc(widget.coachId ?? currentUser!.uid)
                     .collection('students')
                     .snapshots(),
                 builder: (context, snapshot) {
@@ -111,6 +99,7 @@ class _StudentListPageState extends State<StudentListPage> {
                   }
 
                   return ListView.builder(
+                    padding: const EdgeInsets.all(8.0),
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
                       var studentData = snapshot.data!.docs[index];
@@ -135,7 +124,8 @@ class _StudentListPageState extends State<StudentListPage> {
                         age: studentData['age'],
                         height: (studentData['height'] as num).toDouble(),
                         weight: (studentData['weight'] as num).toDouble(),
-                        branches: List<String>.from(studentData['branches'] ?? []),
+                        branches:
+                            List<String>.from(studentData['branches'] ?? []),
                         branchExperiences: Map<String, String>.from(
                             studentData['branchExperiences'] ?? {}),
                         healthProblem: studentData['healthProblem'],
@@ -148,15 +138,6 @@ class _StudentListPageState extends State<StudentListPage> {
                       return Dismissible(
                         key: Key(student.id),
                         direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: const Icon(
-                            Icons.delete,
-                            color: Colors.white,
-                          ),
-                        ),
                         confirmDismiss: (direction) async {
                           final bool? confirmed = await _confirmDelete(context);
                           return confirmed;
@@ -164,33 +145,45 @@ class _StudentListPageState extends State<StudentListPage> {
                         onDismissed: (direction) {
                           _deleteStudent(student.id);
                         },
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            child: Text(
-                                '${student.firstName[0]}${student.lastName[0]}'),
+                        child: Card(
+                          color: AppColors.lightBlue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          title:
-                              Text('${student.firstName} ${student.lastName}'),
-                          subtitle: Text('Yaş: ${student.age}'),
-                          trailing: Icon(
-                            student.paymentStatus ?? false
-                                ? Icons.check
-                                : Icons.close,
-                            color: student.paymentStatus ?? false
-                                ? Colors.green
-                                : Colors.red,
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => StudentInfoPage(
-                                  student: student,
-                                  coachId: widget.coachId,
+                          elevation: 4,
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(12.0),
+                            leading: CircleAvatar(
+                              backgroundColor: AppColors.blue,
+                              child: Text(
+                                '${student.firstName[0]}${student.lastName[0]}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            );
-                          },
+                            ),
+                            title: Text(
+                              '${student.firstName} ${student.lastName}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text('Yaş: ${student.age}'),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => StudentInfoPage(
+                                    student: student,
+                                    coachId: widget.coachId,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       );
                     },
