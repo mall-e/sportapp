@@ -23,99 +23,92 @@ class _CoachsProgramPageState extends State<CoachsProgramPage> {
     '17:00',
   ];
 
-  Map<String, Map<String, List<Map<String, String>>>> schedule = {};
-  Map<String, dynamic>? selectedStudentDetails;
-  String? selectedBranch;
+  Map<String, Map<String, Map<String, String>>> schedule = {};
+  List<Map<String, dynamic>> selectedSessionStudents = [];
+  String? selectedSessionInfo;
 
   @override
   void initState() {
     super.initState();
+    _initializeSchedule();
+  }
 
-    // Tüm hücreler boş olacak şekilde matris oluştur
+  void _initializeSchedule() {
     for (var day in days) {
       schedule[day] = {};
       for (var hour in hours) {
-        schedule[day]![hour] = []; // Boş liste, birden fazla öğrenci olabilir
+        schedule[day]![hour] = {};
       }
     }
   }
 
-  // Stream ile Firebase'den veri dinle
-  Stream<QuerySnapshot> _getCoachScheduleStream() {
+  Stream<DocumentSnapshot> _getCoachScheduleStream() {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       return FirebaseFirestore.instance
           .collection('users')
           .doc(currentUser.uid)
-          .collection('students')
           .snapshots();
-    } else {
-      // Eğer kullanıcı yoksa boş bir stream döndürelim
-      return const Stream.empty();
     }
+    return const Stream.empty();
   }
 
-  void _updateScheduleFromSnapshot(QuerySnapshot snapshot) {
-    for (var day in days) {
-      schedule[day] = {};
-      for (var hour in hours) {
-        schedule[day]![hour] = []; // Tüm gün ve saatler sıfırlanır
-      }
-    }
+  void _updateScheduleFromSnapshot(DocumentSnapshot snapshot) {
+    _initializeSchedule();
 
-    for (var studentDoc in snapshot.docs) {
-      List<dynamic> sessions = studentDoc.get('sessions') ?? [];
+    final data = snapshot.data() as Map<String, dynamic>?;
+    if (data != null && data.containsKey('sessions')) {
+      List<dynamic> sessions = data['sessions'] ?? [];
 
       for (var session in sessions) {
         String branch = session['branch'] ?? '';
         String day = session['day'] ?? '';
         String hour = session['clock'] ?? '';
-        String studentId = studentDoc.id;
-        String firstName = studentDoc.get('firstName') ?? '';
-        String lastName = studentDoc.get('lastName') ?? '';
 
-        // Seans bilgilerini tabloya ekle
         if (days.contains(day) && hours.contains(hour)) {
-          schedule[day]![hour]?.add({
-            'studentId': studentId,
+          schedule[day]![hour] = {
             'branch': branch,
-            'initials': '${firstName[0].toUpperCase()}${lastName[0].toUpperCase()}',
-          });
+            'initial': branch.isNotEmpty ? branch[0].toUpperCase() : '',
+          };
         }
       }
     }
-
   }
 
-  Future<void> _loadStudentDetails(String studentId, String branch) async {
+  Future<void> _loadSessionStudents(String day, String hour) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    String? branch = schedule[day]?[hour]?['branch'];
+    if (branch == null) return;
+
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        DocumentSnapshot studentSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .collection('students')
-            .doc(studentId)
-            .get();
+      final studentsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('students')
+          .where('sessions', arrayContainsAny: [
+        {'day': day, 'clock': hour, 'branch': branch}
+      ]).get();
 
-        if (studentSnapshot.exists) {
-          setState(() {
-            selectedStudentDetails = studentSnapshot.data() as Map<String, dynamic>?;
-            selectedBranch = branch; // Seçilen branch bilgisini de kaydet
-          });
-        }
-      }
+      setState(() {
+        selectedSessionStudents = studentsSnapshot.docs
+            .map((doc) {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                'firstName': data['firstName'] ?? '',
+                'lastName': data['lastName'] ?? '',
+                'profilePicUrl': data['profilePicUrl'],
+                'weight': data['weight'],
+                'height': data['height'],
+              };
+            })
+            .toList();
+        selectedSessionInfo = '$branch - $day $hour';
+      });
     } catch (e) {
-      print('Öğrenci bilgileri yüklenirken hata oluştu: $e');
-    }
-  }
-
-  void _onCellTap(String day, String hour) {
-    final selectedSessions = schedule[day]?[hour] ?? [];
-    if (selectedSessions.isNotEmpty) {
-      // İlk öğrenci ID'sini ve branch bilgisini seç ve bilgilerini yükle
-      _loadStudentDetails(
-          selectedSessions.first['studentId']!, selectedSessions.first['branch']!);
+      print('Öğrenci listesi yüklenirken hata oluştu: $e');
     }
   }
 
@@ -126,12 +119,11 @@ class _CoachsProgramPageState extends State<CoachsProgramPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Coach\'s Program'),
+        title: const Text('Antrenör Programı'),
       ),
       body: Column(
         children: [
-          // Takvim yapısı: ekranın yarısını kaplayacak ve padding ekleyecek
-          StreamBuilder<QuerySnapshot>(
+          StreamBuilder<DocumentSnapshot>(
             stream: _getCoachScheduleStream(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
@@ -143,19 +135,17 @@ class _CoachsProgramPageState extends State<CoachsProgramPage> {
               }
 
               if (snapshot.hasData) {
-                // Programı güncelle
                 _updateScheduleFromSnapshot(snapshot.data!);
 
                 return Container(
-                  height: screenHeight * 0.5, // Ekranın yarısını kaplar
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // Kenarlardan padding
+                  height: screenHeight * 0.5,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Column(
                     children: [
-                      // Günlerin başlıkları
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const SizedBox(width: 50), // Boşluk, saatler için yer
+                          const SizedBox(width: 50),
                           ...days.map((day) => Expanded(
                                 child: Center(
                                   child: Text(
@@ -166,7 +156,7 @@ class _CoachsProgramPageState extends State<CoachsProgramPage> {
                               )),
                         ],
                       ),
-                      const SizedBox(height: 8.0), // Günlerden sonra boşluk
+                      const SizedBox(height: 8.0),
                       Expanded(
                         child: ListView.builder(
                           itemCount: hours.length,
@@ -177,7 +167,6 @@ class _CoachsProgramPageState extends State<CoachsProgramPage> {
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  // Saatlerin gösterimi
                                   SizedBox(
                                     width: 50,
                                     child: Center(
@@ -188,26 +177,27 @@ class _CoachsProgramPageState extends State<CoachsProgramPage> {
                                     ),
                                   ),
                                   ...days.map((day) {
+                                    final hasSession = schedule[day]?[hour]?.isNotEmpty ?? false;
                                     return Expanded(
                                       child: InkWell(
-                                        onTap: () => _onCellTap(day, hour),
+                                        onTap: hasSession
+                                            ? () => _loadSessionStudents(day, hour)
+                                            : null,
                                         borderRadius: BorderRadius.circular(50),
                                         splashColor: Colors.blue.withOpacity(0.3),
                                         child: Container(
                                           margin: const EdgeInsets.all(4.0),
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: schedule[day]![hour]?.isNotEmpty == true
-                                                ? Colors.green.withOpacity(0.8)
+                                            color: hasSession
+                                                ? Colors.blue.withOpacity(0.8)
                                                 : Colors.grey.withOpacity(0.2),
                                           ),
-                                          width: screenWidth * 0.1, // Yuvarlak hücre genişliği
-                                          height: screenWidth * 0.1, // Yuvarlak hücre yüksekliği
+                                          width: screenWidth * 0.1,
+                                          height: screenWidth * 0.1,
                                           child: Center(
                                             child: Text(
-                                              schedule[day]![hour]?.isNotEmpty == true
-                                                  ? schedule[day]![hour]!.first['initials'] ?? ''
-                                                  : '',
+                                              schedule[day]?[hour]?['initial'] ?? '',
                                               style: const TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.bold,
@@ -228,89 +218,61 @@ class _CoachsProgramPageState extends State<CoachsProgramPage> {
                     ],
                   ),
                 );
-              } else {
-                return const Center(child: Text('Program bulunamadı.'));
               }
+              return const Center(child: Text('Program bulunamadı.'));
             },
           ),
-          // Seçilen öğrencinin bilgilerini gösteren Card
-          if (selectedStudentDetails != null)
+          if (selectedSessionStudents.isNotEmpty)
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 4.0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15.0),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 40,
-                                backgroundColor: ThemeData().primaryColor,
-                                backgroundImage: selectedStudentDetails!['profilePicUrl'] != null
-                                    ? NetworkImage(selectedStudentDetails!['profilePicUrl'])
-                                    : null,
-                                child: selectedStudentDetails!['profilePicUrl'] == null
-                                    ? Text(
-                                        (selectedStudentDetails!['firstName'][0] +
-                                            selectedStudentDetails!['lastName'][0])
-                                            .toUpperCase(),
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : null,
-                              ),
-                              const SizedBox(width: 20),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${selectedStudentDetails!['firstName']} ${selectedStudentDetails!['lastName']}',
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  // Burada seansa özel branch bilgisi gösteriliyor
-                                  Text(
-                                    'Branş: $selectedBranch',
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text(
-                                'Kilo: ${selectedStudentDetails!['weight'] ?? 'Bilinmiyor'} kg',
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Boy: ${selectedStudentDetails!['height'] ?? 'Bilinmiyor'} cm',
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      'Ders: ${selectedSessionInfo ?? ""}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: selectedSessionStudents.length,
+                      itemBuilder: (context, index) {
+                        final student = selectedSessionStudents[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 4.0,
+                          ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.blue,
+                              backgroundImage: student['profilePicUrl'] != null
+                                  ? NetworkImage(student['profilePicUrl'])
+                                  : null,
+                              child: student['profilePicUrl'] == null
+                                  ? Text(
+                                      '${student['firstName'][0]}${student['lastName'][0]}'.toUpperCase(),
+                                      style: const TextStyle(color: Colors.white),
+                                    )
+                                  : null,
+                            ),
+                            title: Text(
+                              '${student['firstName']} ${student['lastName']}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              'Boy: ${student['height'] ?? 'Girilmemiş'} cm, '
+                              'Kilo: ${student['weight'] ?? 'Girilmemiş'} kg',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

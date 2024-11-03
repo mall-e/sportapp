@@ -25,6 +25,7 @@ class _RollCallPageState extends State<RollCallPage> {
   void initState() {
     super.initState();
     currentUser = FirebaseAuth.instance.currentUser;
+    //print("Coach ID: ${widget.coachId}");
     _initializeDayAndDate(selectedDate);
     _fetchAvailableSessions();
   }
@@ -38,8 +39,8 @@ class _RollCallPageState extends State<RollCallPage> {
       3: 'Çrş',
       4: 'Prş',
       5: 'Cum',
-      6: 'Cmt',
-      7: 'Paz',
+      6: 'Cts',
+      7: 'Pzr',
     };
     currentDay = dayAbbreviations[date.weekday] ?? '';
   }
@@ -102,9 +103,9 @@ class _RollCallPageState extends State<RollCallPage> {
       setState(() {
         availableSessions = filteredSessions;
         isLoading = false;
-        if (availableSessions.isEmpty) {
+        /*if (availableSessions.isEmpty) {
           errorMessage = 'Bu gün için yoklama alınmamıştır';
-        }
+        }*/
       });
     } catch (e) {
       setState(() {

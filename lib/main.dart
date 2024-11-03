@@ -97,7 +97,6 @@ class AuthCheck extends StatelessWidget {
     );
   }
 }
-
 class MainMenu extends StatefulWidget {
   const MainMenu({super.key});
 
@@ -107,10 +106,21 @@ class MainMenu extends StatefulWidget {
 
 class _MainMenuState extends State<MainMenu> {
   int _selectedIndex = 0;
+  String? currentCoachId;
 
-  static final List<Widget> _pages = <Widget>[
+  @override
+  void initState() {
+    super.initState();
+    // Mevcut kullanıcının ID'sini al
+    currentCoachId = FirebaseAuth.instance.currentUser?.uid;
+  }
+
+  late final List<Widget> _pages = <Widget>[
     StudentListPage(),
-    RollCallPage(selectedDate: DateTime.now()),
+    RollCallPage(
+      selectedDate: DateTime.now(),
+      coachId: currentCoachId, // Koç ID'sini gönder
+    ),
     CoachsProgramPage(),
     AddStudentPage(),
   ];
