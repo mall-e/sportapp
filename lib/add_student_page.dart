@@ -341,13 +341,19 @@ class _ExistingStudentsPageState extends State<ExistingStudentsPage> {
   Future<List<Student>> _getFilteredStudents() async {
     List<Student> filteredStudents = [];
     
-    // Tüm kullanıcıları getir
+    // Tüm koçları getir
     QuerySnapshot coachesSnapshot = await FirebaseFirestore.instance
         .collection('users')
+        .where('role', isEqualTo: 'coach')  // Sadece koçları getir
         .get();
 
     // Her koçun öğrencilerini kontrol et
     for (var coach in coachesSnapshot.docs) {
+      // Eğer bu bizim giriş yapan koçumuz ise, atla
+      if (coach.id == widget.coachId) {
+        continue;
+      }
+
       QuerySnapshot studentsSnapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(coach.id)
@@ -361,8 +367,9 @@ class _ExistingStudentsPageState extends State<ExistingStudentsPage> {
         student.id = studentDoc.id;
         student.originalCoachId = coach.id;
         
-        // Öğrencinin branşları koçun branşlarından herhangi birini içeriyorsa ekle
-        if (student.branches.any((branch) => coachBranches.contains(branch))) {
+        // Öğrencinin branşlarından en az biri, koçun branşlarından biriyle eşleşiyorsa ekle
+        List<String> studentBranches = List<String>.from(data['branches'] ?? []);
+        if (studentBranches.any((branch) => coachBranches.contains(branch))) {
           filteredStudents.add(student);
         }
       }
@@ -376,7 +383,7 @@ class _ExistingStudentsPageState extends State<ExistingStudentsPage> {
         .collection('users')
         .doc(widget.coachId)
         .collection('students')
-        .where('id', isEqualTo: studentId)
+        .where('originalId', isEqualTo: studentId)  // originalId ile kontrol et
         .get();
 
     return existingStudent.docs.isNotEmpty;
@@ -386,24 +393,27 @@ class _ExistingStudentsPageState extends State<ExistingStudentsPage> {
     try {
       if (await _isStudentAlreadyAdded(student.id)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bu öğrenci zaten mevcut.')),
+          SnackBar(content: Text('Bu öğrenci zaten eklenmiş.')),
         );
         return;
       }
 
-      // Öğrenciyi ekle
+      // Öğrenciyi eklerken originalId'sini de kaydet
+      Map<String, dynamic> studentData = student.toMap();
+      studentData['originalId'] = student.id;  // Orijinal ID'yi sakla
+      studentData['originalCoachId'] = student.originalCoachId;  // Orijinal koç ID'sini sakla
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.coachId)
           .collection('students')
-          .add(student.toMap());
+          .add(studentData);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Öğrenci başarıyla eklendi!')),
       );
 
-      // Öğrenci eklendikten sonra listeyi güncelle
-      setState(() {}); // Sayfayı yenilemek için setState ile çağırma
+      setState(() {});
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Öğrenci eklenirken hata oluştu: $e')),
@@ -415,7 +425,7 @@ class _ExistingStudentsPageState extends State<ExistingStudentsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Var Olan Öğrenciler'),
+        title: Text('Diğer Koçların Öğrencileri'),
       ),
       body: FutureBuilder(
         future: _getCoachBranches(),
@@ -440,6 +450,12 @@ class _ExistingStudentsPageState extends State<ExistingStudentsPage> {
               }
 
               final students = snapshot.data ?? [];
+
+              if (students.isEmpty) {
+                return Center(
+                  child: Text('Uygun branşlarda öğrenci bulunamadı.'),
+                );
+              }
 
               return ListView.builder(
                 itemCount: students.length,

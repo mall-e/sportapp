@@ -33,7 +33,7 @@ class CustomAppbar extends StatelessWidget implements PreferredSizeWidget {
       ],
        shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(16), // Alt kısmı yuvarlak yapar
+          bottom: Radius.circular(0), // Alt kısmı yuvarlak yapar
         ),
       ),
     );

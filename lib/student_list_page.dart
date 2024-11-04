@@ -74,7 +74,7 @@ class _StudentListPageState extends State<StudentListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppbar(
-        title: 'Koçlar Listesi',
+        title: 'Öğrenciler Listesi',
       ),
       body: SafeArea(
         child: currentUser == null

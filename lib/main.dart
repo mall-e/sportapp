@@ -122,7 +122,7 @@ class _MainMenuState extends State<MainMenu> {
       coachId: currentCoachId, // Koç ID'sini gönder
     ),
     CoachsProgramPage(),
-    AddStudentPage(),
+    AddStudentPage(coachId: currentCoachId,),
   ];
 
   void _onItemTapped(int index) {
