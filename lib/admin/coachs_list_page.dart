@@ -11,7 +11,7 @@ import 'package:sportapp/widgets/custom_appbar.dart';
 class CoachListPage extends StatelessWidget {
   const CoachListPage({super.key});
 
-  void _showOptionsDialog(BuildContext context, String coachId) {
+  void _showOptionsDialog(BuildContext context, String coachId, String coachName) { // coachName parametresi ekledik
     showModalBottomSheet(
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -93,7 +93,10 @@ class CoachListPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => AdminSessionControlPage(coachId: coachId),
+                      builder: (context) => AdminSessionControlPage(
+                        coachId: coachId,
+                        coachName: coachName, // Koç adını gönderiyoruz
+                      ),
                     ),
                   );
                 },
@@ -102,14 +105,6 @@ class CoachListPage extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildOptionTile(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap}) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.blue),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      onTap: onTap,
     );
   }
 
@@ -141,8 +136,10 @@ class CoachListPage extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              var coachData = snapshot.data!.docs[index];
-              var coachName = coachData['firstName'];
+              var coachData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              String firstName = coachData['firstName'] ?? '';
+              String lastName = coachData['lastName'] ?? '';
+              String fullName = '$firstName $lastName'; // Tam adı oluştur
 
               return Card(
                 shape: RoundedRectangleBorder(
@@ -155,22 +152,34 @@ class CoachListPage extends StatelessWidget {
                   leading: CircleAvatar(
                     backgroundColor: AppColors.blue,
                     child: Text(
-                      coachName[0],
+                      firstName.isNotEmpty ? firstName[0] : '',
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
                   title: Text(
-                    coachName,
+                    fullName,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                   trailing: const Icon(Icons.more_vert, color: Colors.grey),
-                  onTap: () => _showOptionsDialog(context, coachData.id),
+                  onTap: () => _showOptionsDialog(
+                    context, 
+                    snapshot.data!.docs[index].id,
+                    fullName, // Tam adı gönder
+                  ),
                 ),
               );
             },
           );
         },
       ),
+    );
+  }
+
+  Widget _buildOptionTile(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap}) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.blue),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      onTap: onTap,
     );
   }
 }

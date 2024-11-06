@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sportapp/models/coach_model.dart';
+import 'package:sportapp/widgets/colors.dart';
+import 'package:sportapp/widgets/custom_appbar.dart';
 
 class CoachProfilePage extends StatefulWidget {
   final String coachId;
@@ -12,7 +14,6 @@ class CoachProfilePage extends StatefulWidget {
 }
 
 class _CoachProfilePageState extends State<CoachProfilePage> {
-  bool isEditing = false;
   TextEditingController? firstNameController;
   TextEditingController? lastNameController;
   TextEditingController? emailController;
@@ -44,11 +45,9 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
       'email': emailController?.text ?? coach.email,
       'branches': branches,
     });
-    setState(() => isEditing = false);
   }
 
   void _addBranchToFirestore(String branch) async {
-    // Firestore'da branches array'ine yeni branşı ekler
     await FirebaseFirestore.instance.collection('users').doc(widget.coachId).update({
       'branches': FieldValue.arrayUnion([branch]),
     });
@@ -59,7 +58,7 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
       setState(() {
         branches.add(branchController!.text);
       });
-      _addBranchToFirestore(branchController!.text); // Firestore'a ekle
+      _addBranchToFirestore(branchController!.text);
       branchController?.clear();
     }
   }
@@ -69,7 +68,6 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
     setState(() {
       branches.removeAt(index);
     });
-    // Firestore'da branches array'inden bu branşı çıkar
     await FirebaseFirestore.instance.collection('users').doc(widget.coachId).update({
       'branches': FieldValue.arrayRemove([branchToRemove]),
     });
@@ -78,27 +76,9 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Koç Profili'),
-        actions: [
-          IconButton(
-            icon: Icon(isEditing ? Icons.check : Icons.edit),
-            onPressed: () {
-              if (isEditing) {
-                saveChanges(Coach(
-                  id: widget.coachId,
-                  firstName: firstNameController?.text ?? '',
-                  lastName: lastNameController?.text ?? '',
-                  email: emailController?.text ?? '',
-                  profilePictureUrl: '',
-                  branches: branches,
-                ));
-              } else {
-                setState(() => isEditing = true);
-              }
-            },
-          ),
-        ],
+      backgroundColor: const Color(0xFFE8F1FF),
+      appBar: CustomAppbar(
+        title: 'Koç Profili',
       ),
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance.collection('users').doc(widget.coachId).get(),
@@ -119,92 +99,200 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
           emailController?.text = coach.email;
           branches = coach.branches;
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
+          return SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (coach.profilePictureUrl != null)
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundImage: NetworkImage(coach.profilePictureUrl!),
-                  ),
-                const SizedBox(height: 16),
-                if (isEditing)
-                  Column(
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
                     children: [
-                      TextField(
-                        controller: firstNameController,
-                        decoration: const InputDecoration(labelText: 'İsim'),
-                      ),
-                      TextField(
-                        controller: lastNameController,
-                        decoration: const InputDecoration(labelText: 'Soyisim'),
-                      ),
-                      TextField(
-                        controller: emailController,
-                        decoration: const InputDecoration(labelText: 'Email'),
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: AppColors.blue,
+                        child: Text(
+                          coach.firstName[0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 40,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(
+                        controller: firstNameController!,
+                        label: 'İsim',
+                        icon: Icons.person,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: lastNameController!,
+                        label: 'Soyisim',
+                        icon: Icons.person_outline,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: emailController!,
+                        label: 'Email',
+                        icon: Icons.email,
+                      ),
+                      const SizedBox(height: 24),
                       Row(
                         children: [
                           Expanded(
-                            child: TextField(
-                              controller: branchController,
-                              decoration: const InputDecoration(labelText: 'Branş'),
+                            child: _buildTextField(
+                              controller: branchController!,
+                              label: 'Yeni Branş Ekle',
+                              icon: Icons.sports,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           IconButton(
-                            icon: const Icon(Icons.add),
+                            icon: const Icon(Icons.add_circle),
                             onPressed: _addBranch,
+                            color: AppColors.blue,
+                            iconSize: 32,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      ...branches.map((branch) {
-                        int index = branches.indexOf(branch);
-                        return ListTile(
-                          title: Text(branch),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _removeBranch(index),
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  )
-                else
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${coach.firstName} ${coach.lastName}',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        coach.email,
-                        style: const TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       const Text(
-                        'Branşlar:',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        'Branşlar',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      if (branches.isNotEmpty)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: branches.map((branch) => Text('- $branch')).toList(),
+                      const SizedBox(height: 12),
+                      if (branches.isEmpty)
+                        Center(
+                          child: Text(
+                            'Henüz branş eklenmemiş',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 16,
+                            ),
+                          ),
                         )
                       else
-                        const Text('Branş bilgisi yok.'),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: branches.map((branch) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.lightBlue,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    branch,
+                                    style: TextStyle(
+                                      color: AppColors.blue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => _removeBranch(branches.indexOf(branch)),
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(left: 8),
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 20,
+                                        color: AppColors.blue,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            saveChanges(coach);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Değişiklikler kaydedildi'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Kaydet',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
+                ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppColors.blue),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.blue),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.blue, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
       ),
     );
   }

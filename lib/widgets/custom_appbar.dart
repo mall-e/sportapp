@@ -14,7 +14,7 @@ class CustomAppbar extends StatelessWidget implements PreferredSizeWidget {
         style: const TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.bold,
-          color: Colors.black, // Başlık rengi beyaz
+          color: Colors.white, // Başlık rengi beyaz
         ),
       ),
       centerTitle: true, // Başlığı ortalar
@@ -22,7 +22,7 @@ class CustomAppbar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 4, // Hafif bir gölge verir
       actions: [
         IconButton(
-          icon: const Icon(Icons.settings,color: Colors.black,),
+          icon: const Icon(Icons.settings,color: Colors.white,),
           onPressed: () {
             Navigator.push(
               context,

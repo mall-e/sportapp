@@ -68,7 +68,7 @@ class _AdminMenuState extends State<AdminMenu> {
           borderRadius: BorderRadius.circular(16),
         ),
         elevation: 4,
-        color: AppColors.lightBlue, // Arka planı beyaz yaptık
+        color: AppColors.white, // Arka planı beyaz yaptık
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           child: Row(
