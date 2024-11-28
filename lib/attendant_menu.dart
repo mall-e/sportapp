@@ -1,81 +1,170 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:sportapp/roll_call_page.dart';
+import 'package:sportapp/student_list_page.dart';
+import 'package:sportapp/widgets/colors.dart';
 import 'package:sportapp/widgets/custom_appbar.dart';
-import 'coach_students_page.dart'; // Öğrenci sayfası için import
 
-class AttendantMenu extends StatefulWidget {
+class AttendantMenu extends StatelessWidget {
   const AttendantMenu({super.key});
 
-  @override
-  State<AttendantMenu> createState() => _AttendantMenuState();
-}
+  void _showOptionsDialog(BuildContext context, String coachId, String coachName) {
+    showModalBottomSheet(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      backgroundColor: AppColors.white,
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildOptionTile(
+                context,
+                icon: Icons.list,
+                title: 'Öğrenci Listesi',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StudentListPage(coachId: coachId),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
+              _buildOptionTile(
+                context,
+                icon: Icons.check,
+                title: 'Yoklama',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RollCallPage(coachId: coachId),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-class _AttendantMenuState extends State<AttendantMenu> {
-  Future<List<Map<String, dynamic>>> _getCoaches() async {
-    List<Map<String, dynamic>> coachList = [];
-
-    try {
-      QuerySnapshot coachesSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'coach')
-          .get();
-
-      for (var coachDoc in coachesSnapshot.docs) {
-        coachList.add({
-          'coachId': coachDoc.id,
-          'coachName': coachDoc['firstName'], // Koç ismi
-        });
-      }
-    } catch (e) {
-      print('Error fetching coaches: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hocalar getirilirken bir hata oluştu: $e')),
-      );
-    }
-
-    return coachList;
+  Widget _buildOptionTile(BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.blue),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      onTap: onTap,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppbar(title: 'Görevli Ekranı'),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _getCoaches(),
+      appBar: CustomAppbar(
+        title: 'Koçlar Listesi',
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: 'coach')
+            .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
           if (snapshot.hasError) {
             return const Center(child: Text('Bir hata oluştu.'));
           }
 
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Hiç koç bulunamadı.'));
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
           }
 
-          final coachList = snapshot.data!;
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('Koç bulunamadı.'));
+          }
 
           return ListView.builder(
-            itemCount: coachList.length,
+            padding: const EdgeInsets.all(16.0),
+            itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              var coachData = coachList[index];
+              var coachData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              String firstName = coachData['firstName'] ?? '';
+              String lastName = coachData['lastName'] ?? '';
+              String fullName = '$firstName $lastName';
+              String coachId = snapshot.data!.docs[index].id;
 
-              return ListTile(
-                title: Text(coachData['coachName']),
-                onTap: () {
-                  // Öğrenci sayfasına yönlendir
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CoachStudentsPage(
-                        coachId: coachData['coachId'],
-                        coachName: coachData['coachName'],
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => _showOptionsDialog(
+                      context,
+                      coachId,
+                      fullName,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: AppColors.blue.withOpacity(0.9),
+                          child: Text(
+                            firstName.isNotEmpty ? firstName[0].toUpperCase() : '',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          fullName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        trailing: Container(
+                          width: 35,
+                          height: 35,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.more_vert,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                ),
               );
             },
           );
