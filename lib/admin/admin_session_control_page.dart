@@ -234,225 +234,326 @@ class _AdminSessionControlPageState extends State<AdminSessionControlPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppbar(
-        title: '${widget.coachName}\'in Programı',
+Widget build(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final cellWidth = (screenWidth - 45 - 16) / 7;
+
+  return Scaffold(
+    backgroundColor: Colors.grey[100],
+    appBar: AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.black),
+        onPressed: () => Navigator.pop(context),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: _getCoachScheduleStream(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(child: Text('Veritabanı hatası oluştu.'));
-          }
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${widget.coachName}\'in Programı',
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Text(
+            'Antrenman Seansları',
+            style: TextStyle(
+              color: Colors.black54,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    ),
+    body: StreamBuilder<DocumentSnapshot>(
+      stream: _getCoachScheduleStream(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+                const SizedBox(height: 16),
+                const Text('Veritabanı hatası oluştu.'),
+              ],
+            ),
+          );
+        }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(color: AppColors.blue),
+          );
+        }
 
-          if (snapshot.hasData) {
-            _updateScheduleFromSnapshot(snapshot.data!);
+        if (snapshot.hasData) {
+          _updateScheduleFromSnapshot(snapshot.data!);
 
-            return Container(
-              color: const Color(0xFFE8F1FF),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
+          return Column(
+            children: [
+              // Takvim Bölümü
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                child: Column(
+                  children: [
+                    // Günler Başlığı
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            const SizedBox(width: 50),
-                            ...days.map((day) => Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      day,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.black54,
+                        SizedBox(
+                          width: 45,
+                          child: Text(
+                            'Saat',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        ...days.map((day) => SizedBox(
+                          width: cellWidth,
+                          child: Center(
+                            child: Text(
+                              day,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        )),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Saat Grid'i
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.35,
+                      child: ListView.builder(
+                        itemCount: hours.length,
+                        itemBuilder: (context, index) {
+                          String hour = hours[index];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 45,
+                                  child: Text(
+                                    hour,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey[600],
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                                ...days.map((day) => SizedBox(
+                                  width: cellWidth,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(1),
+                                    child: GestureDetector(
+                                      onTap: () => _onCellTap(day, hour),
+                                      onLongPress: () => _onCellLongPress(day, hour),
+                                      child: Container(
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          color: schedule[day]![hour]?.isNotEmpty == true
+                                              ? AppColors.blue.withOpacity(0.1)
+                                              : Colors.grey[50],
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: selectedSessionDay == day &&
+                                                  selectedSessionTime == hour
+                                              ? Border.all(
+                                                  color: AppColors.blue,
+                                                  width: 2,
+                                                )
+                                              : Border.all(
+                                                  color: Colors.grey[200]!,
+                                                  width: 1,
+                                                ),
+                                        ),
+                                        child: Center(
+                                          child: schedule[day]![hour]?.isNotEmpty == true
+                                              ? Text(
+                                                  getBranchInitial(
+                                                    schedule[day]![hour]!.first['branch'] ?? '',
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: AppColors.blue,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                  ),
+                                                )
+                                              : Icon(
+                                                  Icons.add,
+                                                  size: 12,
+                                                  color: Colors.grey[400],
+                                                ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 )),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.4,
-                          child: ListView.builder(
-                            itemCount: hours.length,
-                            itemBuilder: (context, index) {
-                              String hour = hours[index];
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 50,
-                                      child: Text(
-                                        hour,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.black54,
-                                        ),
-                                      ),
-                                    ),
-                                    ...days
-                                        .map((day) => Expanded(
-                                              child: GestureDetector(
-                                                onTap: () =>
-                                                    _onCellTap(day, hour),
-                                                onLongPress: () =>
-                                                    _onCellLongPress(day, hour),
-                                                child: Container(
-                                                  margin:
-                                                      const EdgeInsets.all(2),
-                                                  decoration: BoxDecoration(
-                                                    color: schedule[day]![hour]
-                                                                ?.isNotEmpty ==
-                                                            true
-                                                        ? Colors.blue.shade100
-                                                        : Colors.white,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                    border: selectedSessionDay ==
-                                                                day &&
-                                                            selectedSessionTime ==
-                                                                hour
-                                                        ? Border.all(
-                                                            color: Colors.blue,
-                                                            width: 2)
-                                                        : null,
-                                                  ),
-                                                  height: 40,
-                                                  child: Center(
-                                                    child: Text(
-                                                      schedule[day]![hour]
-                                                                  ?.isNotEmpty ==
-                                                              true
-                                                          ? getBranchInitial(
-                                                              schedule[day]![hour]!
-                                                                          .first[
-                                                                      'branch'] ??
-                                                                  '')
-                                                          : '',
-                                                      style: TextStyle(
-                                                        color: Colors
-                                                            .blue.shade700,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ))
-                                        .toList(),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            selectedBranchName.isNotEmpty
-                                ? '$selectedBranchName - $selectedSessionDay $selectedSessionTime'
-                                : 'Seans Seçiniz',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              ],
                             ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Öğrenci Listesi Bölümü
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        offset: const Offset(0, -4),
+                        blurRadius: 16,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.groups_outlined,
+                            color: AppColors.blue,
+                            size: 24,
                           ),
-                          const SizedBox(height: 8),
-                          Expanded(
-                            child: sessionStudents.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      'Bu seansta kayıtlı öğrenci bulunmamaktadır',
-                                      style: TextStyle(
-                                        color: Colors.black54,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    itemCount: sessionStudents.length,
-                                    itemBuilder: (context, index) {
-                                      final student = sessionStudents[index];
-                                      // İsim ve soyisimin baş harflerini al
-                                      final nameParts =
-                                          student['name'].split(' ');
-                                      final initials = nameParts.length >= 2
-                                          ? '${nameParts[0][0]}${nameParts[1][0]}'
-                                              .toUpperCase()
-                                          : nameParts[0][0].toUpperCase();
-
-                                      return Container(
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue.shade100,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: ListTile(
-                                          leading: CircleAvatar(
-                                            backgroundColor: AppColors.white,
-                                            child: Text(
-                                              initials,
-                                              style: TextStyle(
-                                                color: AppColors.blue,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ),
-                                          title: Text(
-                                            student['name'],
-                                            style: const TextStyle(
-                                              color: Colors.black87,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                  horizontal: 16, vertical: 8),
-                                        ),
-                                      );
-                                    },
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                selectedBranchName.isNotEmpty
+                                    ? selectedBranchName
+                                    : 'Seans Seçiniz',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (selectedSessionDay.isNotEmpty)
+                                Text(
+                                  '$selectedSessionDay $selectedSessionTime',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
                                   ),
+                                ),
+                            ],
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 20),
+                      Expanded(
+                        child: sessionStudents.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.people_outline,
+                                      size: 48,
+                                      color: Colors.grey[300],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Bu seansta kayıtlı öğrenci bulunmamaktadır',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: sessionStudents.length,
+                                itemBuilder: (context, index) {
+                                  final student = sessionStudents[index];
+                                  final nameParts = student['name'].split(' ');
+                                  final initials = nameParts.length >= 2
+                                      ? '${nameParts[0][0]}${nameParts[1][0]}'.toUpperCase()
+                                      : nameParts[0][0].toUpperCase();
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.grey[200]!,
+                                      ),
+                                    ),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.all(12),
+                                      leading: Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.blue.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            initials,
+                                            style: TextStyle(
+                                              color: AppColors.blue,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      title: Text(
+                                        student['name'],
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        '${student['age']} yaşında',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      trailing: Icon(
+                                        Icons.check_circle,
+                                        color: AppColors.blue,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            );
-          }
-          return const Center(child: Text('Program bulunamadı.'));
-        },
-      ),
-    );
-  }
+            ],
+          );
+        }
+        return const Center(child: Text('Program bulunamadı.'));
+      },
+    ),
+  );
+}
 }

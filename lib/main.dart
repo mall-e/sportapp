@@ -9,8 +9,10 @@ import 'package:sportapp/coachs_program_page.dart';
 import 'package:sportapp/firebase_options.dart';
 import 'package:sportapp/roll_call_page.dart';
 import 'package:sportapp/routes/app_routes.dart';
+import 'package:sportapp/settings_page.dart';
 import 'package:sportapp/student_list_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sportapp/widgets/colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,15 +31,84 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
+        // Ana renk şemasını AppColors.blue ile uyumlu olacak şekilde ayarla
+        colorScheme: ColorScheme.light(
+          primary: AppColors.blue,
+          secondary: AppColors.lightBlue,
+          // Card ve diğer yüzeylerin rengi
+          surface: Colors.white,
+          background: Colors.grey[100]!,
+          // Metin renkleri
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: Colors.black,
+          onBackground: Colors.black,
+        ),
         useMaterial3: true,
+        cardTheme: CardTheme(
+          color: Colors.white,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+
+        // AppBar teması
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          iconTheme: IconThemeData(color: Colors.black),
+          titleTextStyle: TextStyle(
+            color: Colors.black,
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+
+        // Bottom Navigation Bar teması
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: Colors.black,
           selectedItemColor: Colors.black,
           unselectedItemColor: Colors.grey,
         ),
+
+        // Elevated Button teması
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.blue,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+        ),
+
+        // Input Decoration teması
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey[50],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.blue),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.red),
+          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
       ),
-      home: const AuthCheck(), // Başlangıç sayfası AuthCheck oldu
+      home: const AuthCheck(),
     );
   }
 }
@@ -83,7 +154,7 @@ class AuthCheck extends StatelessWidget {
                 } else if (role == 'attendant') {
                   return const AttendantMenu(); // Rol 'attendant' ise AttendantMenu'ya yönlendir
                 } else {
-                  return const MainMenu(); // Diğer roller için MainMenu'ye yönlendir
+                  return MainMenu(userRole: role ?? 'coach'); // Diğer roller için MainMenu'ye yönlendir
                 }
               } else {
                 return const AdminLoginPage(); // Rol bulunamazsa veya oturum açılmamışsa AdminLoginPage'e yönlendir
@@ -97,8 +168,10 @@ class AuthCheck extends StatelessWidget {
     );
   }
 }
+
 class MainMenu extends StatefulWidget {
-  const MainMenu({super.key});
+  final String userRole; // Yeni eklenen role parametresi
+  const MainMenu({super.key, this.userRole = 'coach'}); // Varsayılan değer coach
 
   @override
   State<MainMenu> createState() => _MainMenuState();
@@ -116,13 +189,23 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   late final List<Widget> _pages = <Widget>[
-    StudentListPage(),
+    StudentListPage(
+      coachId: currentCoachId,
+      showBackButton: widget.userRole == 'admin', // Admin ise true, değilse false
+    ),
     RollCallPage(
       selectedDate: DateTime.now(),
-      coachId: currentCoachId, // Koç ID'sini gönder
+      coachId: currentCoachId,
+      showBackButton: widget.userRole == 'admin',
     ),
-    CoachsProgramPage(),
-    AddStudentPage(coachId: currentCoachId,),
+    CoachsProgramPage(
+      showBackButton: widget.userRole == 'admin',
+    ),
+    AddStudentPage(
+      coachId: currentCoachId,
+      showBackButton: widget.userRole == 'admin',
+    ),
+    SettingsPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -141,20 +224,29 @@ class _MainMenuState extends State<MainMenu> {
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: 'Students',
+            icon: Icon(Icons.people_outline),
+            activeIcon: Icon(Icons.people),
+            label: 'Öğrenciler',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.roller_shades),
+            icon: Icon(Icons.fact_check_outlined),
+            activeIcon: Icon(Icons.fact_check),
             label: 'Yoklama',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_view_month),
-            label: 'Coach Program',
+            icon: Icon(Icons.calendar_month_outlined),
+            activeIcon: Icon(Icons.calendar_month),
+            label: 'Program',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add),
-            label: 'Add Student',
+            icon: Icon(Icons.person_add_outlined),
+            activeIcon: Icon(Icons.person_add),
+            label: 'Öğrenci Ekle',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Ayarlar',
           ),
         ],
         currentIndex: _selectedIndex,

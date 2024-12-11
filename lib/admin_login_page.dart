@@ -5,8 +5,6 @@ import 'package:sportapp/widgets/colors.dart';
 import 'package:sportapp/main.dart';
 import 'package:sportapp/attendant_menu.dart';
 import 'package:sportapp/admin/admin_menu.dart';
-import 'package:sportapp/widgets/button.dart';
-import 'package:sportapp/widgets/textfield.dart';
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -20,11 +18,10 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
-  void _login() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _login() async {
+    setState(() => _isLoading = true);
 
     try {
       String email = _emailController.text.trim();
@@ -35,74 +32,67 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         password: password,
       );
 
-      String userId = userCredential.user!.uid;
+      if (!mounted) return;
+
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(userId)
+          .doc(userCredential.user!.uid)
           .get();
 
       if (!mounted) return;
 
       if (userDoc.exists) {
         String? role = userDoc['role'] as String?;
+        Widget destination;
 
-        if (role == 'admin') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const AdminMenu()),
-          );
-        } else if (role == 'attendant') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const AttendantMenu()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainMenu()),
-          );
+        switch (role) {
+          case 'admin':
+            destination = const AdminMenu();
+            break;
+          case 'attendant':
+            destination = const AttendantMenu();
+            break;
+          default:
+            destination = const MainMenu();
         }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kullanıcı rolü bulunamadı.')),
-          );
-        }
+        _showErrorSnackBar('Kullanıcı rolü bulunamadı.');
       }
     } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        String message = '';
-        if (e.code == 'user-not-found') {
-          message = 'Kullanıcı bulunamadı.';
-        } else if (e.code == 'wrong-password') {
-          message = 'Hatalı şifre girdiniz.';
-        } else {
-          message = 'Lütfen bilgilerinizi kontrol ediniz.';//${e.message}
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-      }
+      String message = switch (e.code) {
+        'user-not-found' => 'Kullanıcı bulunamadı.',
+        'wrong-password' => 'Hatalı şifre girdiniz.',
+        _ => 'Lütfen bilgilerinizi kontrol ediniz.',
+      };
+      _showErrorSnackBar(message);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bir hata oluştu: $e')),
-        );
-      }
+      _showErrorSnackBar('Bir hata oluştu: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red[400],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.blue, // Light blue background
+      backgroundColor: Colors.grey[100],
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -110,20 +100,25 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Swimming icon
-                const Icon(
-                  Icons.pool,
-                  size: 120,
-                  color: Colors.black,
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightBlue,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.pool,
+                    size: 64,
+                    color: AppColors.black,
+                  ),
                 ),
                 const SizedBox(height: 32),
-                // Login Card
                 Container(
                   width: double.infinity,
                   constraints: const BoxConstraints(maxWidth: 400),
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
-                    color: AppColors.white,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
@@ -134,37 +129,105 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     ],
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Giriş Yap',
+                        'Hoş Geldiniz',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.black,
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 24),
-                      TextFormField(
+                      Text(
+                        'Devam etmek için giriş yapın',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      TextField(
                         controller: _emailController,
-                        decoration: customInputDecoration(
-                            'Email', Icons.email_outlined),
+                        decoration: InputDecoration(
+                          hintText: 'Email',
+                          prefixIcon: Icon(Icons.email_outlined, color: AppColors.blue),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.blue),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      TextField(
                         controller: _passwordController,
-                        obscureText: true,
-                        decoration:
-                            customInputDecoration('Şifre', Icons.lock_outline),
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          hintText: 'Şifre',
+                          prefixIcon: Icon(Icons.lock_outline, color: AppColors.blue),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              color: Colors.grey[600],
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.blue),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
-                        height: 48,
-                        child: CustomElevatedButton(
-                          onPressed: _login,
-                          isLoading: _isLoading,
-                          text: 'Giriş Yap',
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _login,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.blue,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Giriş Yap',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -176,5 +239,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }

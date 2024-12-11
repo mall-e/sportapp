@@ -2,11 +2,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:sportapp/widgets/colors.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 class RollCallPage extends StatefulWidget {
   final DateTime? selectedDate;
   final String? coachId;
-  const RollCallPage({super.key, this.selectedDate, this.coachId});
+  final bool showBackButton;
+  const RollCallPage({
+    super.key,
+    this.selectedDate,
+    this.coachId,
+    this.showBackButton = false,
+  });
 
   @override
   State<RollCallPage> createState() => _RollCallPageState();
@@ -24,10 +32,11 @@ class _RollCallPageState extends State<RollCallPage> {
   @override
   void initState() {
     super.initState();
-    currentUser = FirebaseAuth.instance.currentUser;
-    //print("Coach ID: ${widget.coachId}");
-    _initializeDayAndDate(selectedDate);
-    _fetchAvailableSessions();
+    initializeDateFormatting('tr_TR', null).then((_) {
+      currentUser = FirebaseAuth.instance.currentUser;
+      _initializeDayAndDate(selectedDate);
+      _fetchAvailableSessions();
+    });
   }
 
   void _initializeDayAndDate(DateTime date) {
@@ -131,7 +140,6 @@ class _RollCallPageState extends State<RollCallPage> {
     }
   }
 
-
   Future<void> _markAttendance(
       String studentId, String clock, String branch, bool isPresent) async {
     try {
@@ -193,154 +201,284 @@ class _RollCallPageState extends State<RollCallPage> {
   }
 
   Widget _buildStudentsList(String clock, String branch) {
-  bool isToday = formattedDate == DateFormat('yyyy-MM-dd').format(DateTime.now());
+    bool isToday =
+        formattedDate == DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-  return StreamBuilder<QuerySnapshot>(
-    stream: FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.coachId)
-        .collection('students')
-        .where('sessions', arrayContainsAny: [
-      {'day': currentDay, 'clock': clock, 'branch': branch}
-    ]).snapshots(),
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return Center(child: Text('Bir hata oluştu: ${snapshot.error}'));
-      }
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.coachId)
+          .collection('students')
+          .where('sessions', arrayContainsAny: [
+        {'day': currentDay, 'clock': clock, 'branch': branch}
+      ]).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Bir hata oluştu: ${snapshot.error}',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          );
+        }
 
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator());
-      }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.blue),
+          );
+        }
 
-      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-        return const Center(child: Text('Öğrenci bulunamadı.'));
-      }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Text(
+              'Öğrenci bulunamadı.',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          );
+        }
 
-      return ListView.builder(
-        itemCount: snapshot.data!.docs.length,
-        itemBuilder: (context, index) {
-          var studentData = snapshot.data!.docs[index];
-          String studentId = studentData.id;
-          String studentName =
-              '${studentData.get('firstName') ?? ''} ${studentData.get('lastName') ?? ''}'
-                  .trim();
-          if (studentName.isEmpty) studentName = 'İsimsiz Öğrenci';
+        return ListView.builder(
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            var studentData = snapshot.data!.docs[index];
+            String studentId = studentData.id;
+            String firstName = studentData.get('firstName') ?? '';
+            String lastName = studentData.get('lastName') ?? '';
+            String studentName = '$firstName $lastName'.trim();
+            if (studentName.isEmpty) studentName = 'İsimsiz Öğrenci';
 
-          return StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(widget.coachId)
-                .collection('rollcall')
-                .doc(formattedDate)
-                .collection(clock)
-                .doc(studentId)
-                .snapshots(),
-            builder: (context, rollcallSnapshot) {
-              if (rollcallSnapshot.connectionState ==
-                  ConnectionState.waiting) {
-                return const ListTile(
-                  title: Text('Yükleniyor...'),
-                  trailing: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+            return StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.coachId)
+                  .collection('rollcall')
+                  .doc(formattedDate)
+                  .collection(clock)
+                  .doc(studentId)
+                  .snapshots(),
+              builder: (context, rollcallSnapshot) {
+                if (rollcallSnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                    child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  );
+                }
+
+                bool? isPresent;
+                if (rollcallSnapshot.hasData && rollcallSnapshot.data!.exists) {
+                  isPresent = rollcallSnapshot.data!.get('isPresent') as bool?;
+                }
+
+                return Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            width: 4,
+                            color: isPresent == null
+                                ? Colors.grey[300]!
+                                : isPresent
+                                    ? AppColors.green
+                                    : AppColors.red,
+                          ),
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.lightBlue,
+                          child: Text(
+                            firstName.isNotEmpty
+                                ? firstName[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              color: AppColors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          studentName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                        subtitle: Text(
+                          isPresent == null
+                              ? 'Yoklama alınmadı'
+                              : isPresent
+                                  ? 'Var olarak işaretlendi'
+                                  : 'Yok olarak işaretlendi',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                        trailing: isToday
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildAttendanceButton(
+                                    isSelected: isPresent == true,
+                                    icon: Icons.check_circle_outline,
+                                    color: AppColors.green,
+                                    onTap: () => _markAttendance(
+                                        studentId, clock, branch, true),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildAttendanceButton(
+                                    isSelected: isPresent == false,
+                                    icon: Icons.cancel_outlined,
+                                    color: AppColors.red,
+                                    onTap: () => _markAttendance(
+                                        studentId, clock, branch, false),
+                                  ),
+                                ],
+                              )
+                            : null,
+                      ),
+                    ),
                   ),
                 );
-              }
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 
-              bool? isPresent;
-              if (rollcallSnapshot.hasData && rollcallSnapshot.data!.exists) {
-                isPresent = rollcallSnapshot.data!.get('isPresent') as bool?;
-              }
-
-              Color tileColor;
-              if (isPresent == null) {
-                tileColor = Colors.grey.shade300;
-              } else if (isPresent) {
-                tileColor = Colors.green.shade300;
-              } else {
-                tileColor = Colors.red.shade300;
-              }
-
-              return Container(
-                color: tileColor,
-                child: ListTile(
-                  title: Text(studentName),
-                  subtitle: Text(
-                      'Yoklama durumu: ${isPresent == null ? "Henüz alınmadı" : (isPresent ? "Var olarak işaretlendi" : "Yok olarak işaretlendi")}'),
-                  trailing: isToday
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.check,
-                                color: isPresent == true
-                                    ? Colors.black
-                                    : Colors.white,
-                              ),
-                              onPressed: () => _markAttendance(
-                                  studentId, clock, branch, true),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.close,
-                                color: isPresent == false
-                                    ? Colors.black
-                                    : Colors.white,
-                              ),
-                              onPressed: () => _markAttendance(
-                                  studentId, clock, branch, false),
-                            ),
-                          ],
-                        )
-                      : null, // Yalnızca bugünkü tarih seçiliyken yoklama yapılabilir
-                ),
-              );
-            },
-          );
-        },
-      );
-    },
-  );
-}
+  Widget _buildAttendanceButton({
+    required bool isSelected,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Icon(
+            icon,
+            color: isSelected ? color : Colors.grey[400],
+            size: 24,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     bool isToday =
         formattedDate == DateFormat('yyyy-MM-dd').format(DateTime.now());
-    String title = isToday ? 'Bugünün Yoklaması' : '$formattedDate Yoklaması';
+    String formattedDisplayDate =
+        DateFormat('d MMMM yyyy', 'tr_TR').format(selectedDate);
 
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: Text(title),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: widget.showBackButton
+            ? IconButton(
+                // Koşula bağlı leading
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Yoklama',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              formattedDisplayDate,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.calendar_today),
+            icon: const Icon(Icons.calendar_today, color: AppColors.blue),
             onPressed: () => _selectDate(context),
           ),
         ],
       ),
       body: currentUser == null
-          ? const Center(child: Text('Kullanıcı giriş yapmamış'))
+          ? Center(
+              child: Text(
+                'Kullanıcı giriş yapmamış',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            )
           : isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.blue),
+                )
               : errorMessage != null
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline,
-                              size: 48, color: Colors.red),
+                          Icon(Icons.error_outline,
+                              size: 48, color: Colors.red[400]),
                           const SizedBox(height: 16),
-                          Text(
-                            errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: _fetchAvailableSessions,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.blue,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
                             child: const Text('Tekrar Dene'),
                           ),
                         ],
@@ -351,42 +489,84 @@ class _RollCallPageState extends State<RollCallPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.event_busy,
-                                  size: 48, color: Colors.grey),
+                              Icon(Icons.event_busy,
+                                  size: 48, color: Colors.grey[400]),
                               const SizedBox(height: 16),
-                              const Text(
+                              Text(
                                 'Bu gün için ders bulunmamaktadır.',
-                                style: TextStyle(fontSize: 16),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ),
                         )
-                      : Column(
-                          children: [
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: availableSessions.length,
-                                itemBuilder: (context, index) {
-                                  var session = availableSessions[index];
-                                  String branch =
-                                      session['branch'] ?? 'Bilinmeyen Branş';
-                                  String clock =
-                                      session['clock'] ?? 'Bilinmeyen Saat';
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: availableSessions.length,
+                          itemBuilder: (context, index) {
+                            var session = availableSessions[index];
+                            String branch =
+                                session['branch'] ?? 'Bilinmeyen Branş';
+                            String clock =
+                                session['clock'] ?? 'Bilinmeyen Saat';
 
-                                  return ExpansionTile(
-                                    title: Text('$branch - Saat: $clock'),
-                                    children: [
-                                      SizedBox(
-                                        height: 400,
-                                        child:
-                                            _buildStudentsList(clock, branch),
-                                      ),
-                                    ],
-                                  );
-                                },
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    spreadRadius: 1,
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  dividerColor: Colors.transparent,
+                                ),
+                                child: ExpansionTile(
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.lightBlue,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.sports,
+                                      color: AppColors.blue,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    branch,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    clock,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  children: [
+                                    SizedBox(
+                                      height: 400,
+                                      child: _buildStudentsList(clock, branch),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
     );
   }
